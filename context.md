@@ -7,21 +7,32 @@ El proyecto resuelve una necesidad habitual en juntadas de amigos (partidos de P
 
 ## 2. Evolución del Proyecto
 - **Versión inicial (`parejas para truco o play.py`):** Script de consola en Python que pedía nombres por `input()`, solicitaba un tamaño de equipo y extraía elementos con `random.choice()` + `.remove()`. No contemplaba jugadores sobrantes, no armaba enfrentamientos `VS`, no sorteaba clubes de fútbol y requería reescribir los nombres en cada ejecución.
-- **Versión actual (`index.html`, `css/styles.css`, `js/app.js`):** Aplicación Web client-side sin dependencias externas (Vanilla HTML5/CSS3/JS ES6+), optimizada para abrirse localmente o desplegarse directamente vía **GitHub Pages** (en `main` / `root`) y persistir los datos en `localStorage`.
+- **Versión actual (`index.html`, `css/styles.css`, `js/*.js`):** Aplicación Web client-side sin dependencias externas (Vanilla HTML5/CSS3/JS ES6+), modularizada en 6 archivos JavaScript por dominio funcional, optimizada para abrirse localmente (`file://`) o desplegarse directamente vía **GitHub Pages** / **Vercel** y persistir los datos en `localStorage`.
 
 ---
 
-## 3. Arquitectura y Flujo de Datos
+## 3. Arquitectura Modular y Flujo de Datos
 
-### Estado Global (`state` en `app.js`)
+### Modularización de JavaScript (`js/`)
+Para mantener cada archivo acotado, legible y fácil de mantener, el código JavaScript está dividido en 6 módulos cargados en orden en [`index.html`](./index.html):
+1. **`js/state.js` (~236 líneas):** Define `DEFAULT_PRESETS`, `STORAGE_KEY`, el objeto global `state`, todas las referencias a elementos del DOM, `shuffleArray` (Fisher-Yates), `saveState`, `loadState` y utilidades de alerta (`showAlert` / `hideAlert`).
+2. **`js/players-clubs.js` (~233 líneas):** Maneja el alta/baja/activación de jugadores (`addPlayersFromString`, `togglePlayerActive`, `removePlayer`), el cálculo de estadísticas en vivo (`updateStats`), la asignación y re-sorteo de clubes (`assignClubsToTeams`, `rerollSingleTeamClub`) y el modal de edición de presets (`renderClubsModal`).
+3. **`js/draw.js` (~251 líneas):** Contiene la lógica principal del sorteo (`generateDraw`), creación de tarjetas `VS` (`renderDrawResults`, `createTeamElement`), limpieza de interfaz (`clearDrawUI`) y exportación a WhatsApp (`copySummaryToClipboard`).
+4. **`js/tournament.js` (~355 líneas):** Motor completo de torneos: fixture Round-Robin (`generateRoundRobinRounds`), tabla de posiciones en vivo (`computeGroupStandings`), cuadro eliminatorio con `BYE` automático (`createKnockoutBracket`, `propagateBracketWinners`), renderizado y exportación del torneo.
+5. **`js/truco.js` (~231 líneas):** Anotador de Truco a 30 o 15 puntos con renderizado SVG de cajoncitos de 5 fósforos (`createMatchstickBoxSVG`), división en *Malas* y *Buenas*, festejo con confeti (`launchTrucoConfetti`) y vinculación directa con partidos del Torneo (`saveTrucoToLinkedMatch`).
+6. **`js/app.js` (~241 líneas):** Punto de entrada que registra todos los Event Listeners de la interfaz e inicializa la aplicación.
+
+### Estado Global (`state` en `js/state.js`)
 Toda la aplicación gira en torno a un único objeto de estado sincronizado en `localStorage` bajo la clave `armador_parejas_state_v1`:
 - `teamSize` (`1 | 2 | 3`): Define el formato actual (`1 vs 1`, `2 vs 2` o `3 vs 3`).
 - `players` (`Array<{ id, name, active }>`): Lista de jugadores registrados. El flag `active` permite desactivar amigos ausentes en una juntada sin eliminarlos de la base guardada.
-- `clubsEnabled` (`boolean`): Activa o desactiva la asignación de clubes de fútbol.
-- `selectedPreset` (`"argentina" | "europa" | "selecciones" | "mix5" | "custom"`): Categoría de clubes activa.
+- `assignClubs` (`boolean`): Activa o desactiva la asignación de clubes de fútbol.
+- `currentPresetKey` (`"argentina" | "europa" | "selecciones" | "mix5" | "custom"`): Categoría de clubes activa.
 - `noRepeatClubs` (`boolean`): Evita que dos equipos reciban el mismo club mientras alcancen los clubes disponibles en la bolsa.
-- `presets` (`Object`): Diccionario de listas de clubes editables por el usuario, inicializado a partir de `DEFAULT_PRESETS`.
-- `lastDraw` (`{ teams, bench } | null`): Resultado del último sorteo en memoria, lo que permite **re-sortear únicamente los clubes** sin desarmar las parejas ya formadas.
+- `customPresets` (`Object`): Diccionario de listas de clubes editables por el usuario, inicializado a partir de `DEFAULT_PRESETS`.
+- `lastDraw` (`{ teamSize, teams, matches, waitingTeam, benchPlayers } | null`): Resultado del último sorteo en memoria, lo que permite **re-sortear únicamente los clubes** sin desarmar las parejas ya formadas.
+- `tournament` (`{ format, groupCount, advanceCount, teams, groups, bracket } | null`): Estado completo del torneo activo.
+- `truco` (`{ target, nameA, nameB, scoreA, scoreB, linkedMatch }`): Estado persistente del anotador de Truco.
 
 ---
 

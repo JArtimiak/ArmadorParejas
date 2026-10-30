@@ -54,11 +54,16 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
 ## 📁 Estructura de Archivos
 
 ```text
-├── index.html                  # Estructura principal y modal nativo <dialog>
+├── index.html                  # Estructura principal y modales nativos <dialog>
 ├── css/
 │   └── styles.css              # Diseño moderno, adaptable y animaciones CSS
 ├── js/
-│   └── app.js                  # Lógica de sorteo (Fisher-Yates), estado y persistencia
-├── README.md                   # Documentación de uso y guía de despliegue
+│   ├── state.js                # Estado global, referencias al DOM y persistencia (localStorage)
+│   ├── players-clubs.js        # Gestión de jugadores y presets de clubes de fútbol
+│   ├── draw.js                 # Algoritmo de sorteo de parejas, cruces VS y copia WhatsApp
+│   ├── tournament.js           # Motor de Torneo (Fase de Grupos Round-Robin y Eliminatorias)
+│   ├── truco.js                # Anotador de Truco (30/15 pts con fósforos SVG y confeti)
+│   └── app.js                  # Punto de entrada: registro de eventos e inicialización
+├── README.md                   # Documentación de uso y estructura del proyecto
 └── context.md                  # Contexto técnico, arquitectura y decisiones de diseño
 ```
