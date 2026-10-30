@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Armador de Parejas & Cruces | Truco, Play & Fútbol</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Encabezado -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">🃏⚽</span>
+        <div>
+          <h1>Armador de Parejas &amp; Cruces</h1>
+          <p class="subtitle">Sorteo inteligente para Truco, Play (EA FC / PES) y F5</p>
+        </div>
+      </div>
+
+      <!-- Selector de Formato (1vs1, 2vs2, 3vs3) -->
+      <div class="mode-selector" role="group" aria-label="Formato de juego">
+        <button type="button" class="mode-btn" data-size="1" aria-pressed="false">
+          <span class="mode-badge">1 vs 1</span>
+          <span class="mode-desc">Mano a mano</span>
+        </button>
+        <button type="button" class="mode-btn active" data-size="2" aria-pressed="true">
+          <span class="mode-badge">2 vs 2</span>
+          <span class="mode-desc">Parejas</span>
+        </button>
+        <button type="button" class="mode-btn" data-size="3" aria-pressed="false">
+          <span class="mode-badge">3 vs 3</span>
+          <span class="mode-desc">Tríos / Picado</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <!-- Columna Izquierda: Configuración y Jugadores -->
+      <section class="panel config-panel" aria-labelledby="players-heading">
+        <div class="panel-header">
+          <h2 id="players-heading">👥 Jugadores</h2>
+          <div class="header-actions">
+            <button type="button" id="btnLoadDemo" class="btn-ghost btn-sm" title="Cargar nombres de prueba">
+              + Ejemplo
+            </button>
+            <button type="button" id="btnClearPlayers" class="btn-ghost btn-sm danger-text" title="Vaciar lista de jugadores">
+              Limpiar
+            </button>
+          </div>
+        </div>
+
+        <!-- Formulario de ingreso -->
+        <form id="playerForm" class="player-form" autocomplete="off">
+          <input
+            type="text"
+            id="playerInput"
+            placeholder="Nombre (o varios separados por coma)..."
+            aria-label="Nombre del jugador"
+          />
+          <button type="submit" class="btn-primary">Agregar</button>
+        </form>
+        <p class="helper-text">
+          Tip: Hacé clic sobre un jugador para desactivarlo temporalmente si hoy no juega.
+        </p>
+
+        <!-- Lista de jugadores -->
+        <ul id="playerList" class="player-list" aria-live="polite"></ul>
+
+        <!-- Resumen matemático en vivo -->
+        <div id="playerStats" class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-value" id="statActiveCount">0</span>
+            <span class="stat-label">Presentes</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="statTeamsCount">0</span>
+            <span class="stat-label" id="statTeamsLabel">Parejas</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="statMatchesCount">0</span>
+            <span class="stat-label">Partidos VS</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="statBenchCount">0</span>
+            <span class="stat-label">Al banco</span>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Configuración de Clubes / Equipos (Play / Fútbol) -->
+        <div class="clubs-section">
+          <div class="clubs-toggle-row">
+            <label class="switch-label" for="toggleClubs">
+              <input type="checkbox" id="toggleClubs" checked />
+              <span class="switch-Control"></span>
+              <span>
+                <strong>⚽ Sortear Clubes / Equipos</strong>
+                <small>Asigna un club (ej. Boca, Real Madrid) a cada pareja o jugador</small>
+              </span>
+            </label>
+          </div>
+
+          <div id="clubsConfigPanel" class="clubs-config-body">
+            <div class="field-group">
+              <label for="presetSelect">Categoría / Liga:</label>
+              <div class="preset-row">
+                <select id="presetSelect">
+                  <option value="argentina">🇦🇷 Fútbol Argentino</option>
+                  <option value="europa">🌍 Gigantes de Europa (Champions)</option>
+                  <option value="selecciones">🏆 Selecciones Nacionales</option>
+                  <option value="mix5">⭐ Mix Élite 5 Estrellas</option>
+                  <option value="custom">✏️ Personalizado / Mis Clubes</option>
+                </select>
+                <button type="button" id="btnOpenClubsDialog" class="btn-secondary btn-sm">
+                  ⚙️ Editar clubes (<span id="activeClubsCount">0</span>)
+                </button>
+              </div>
+            </div>
+
+            <label class="checkbox-inline">
+              <input type="checkbox" id="chkNoRepeatClubs" checked />
+              <span>Evitar que se repitan clubes en el sorteo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Botón Principal de Sorteo -->
+        <div class="draw-actions">
+          <button type="button" id="btnGenerate" class="btn-draw">
+            🎲 ¡Armar Parejas y Cruces!
+          </button>
+        </div>
+      </section>
+
+      <!-- Columna Derecha: Resultados y Enfrentamientos -->
+      <section class="panel results-panel" aria-labelledby="results-heading">
+        <div class="panel-header">
+          <h2 id="results-heading">🏆 Enfrentamientos y Parejas</h2>
+          <div class="header-actions" id="resultHeaderActions" hidden>
+            <button type="button" id="btnRerollAll" class="btn-primary btn-sm" title="Vuelve a mezclar jugadores, parejas y clubes">
+              🔄 Re-sortear todo
+            </button>
+            <button type="button" id="btnRerollClubs" class="btn-secondary btn-sm" title="Mantiene las parejas pero vuelve a sortear los clubes">
+              ⚽ Solo Clubes
+            </button>
+            <button type="button" id="btnCopyWhatsapp" class="btn-ghost btn-sm" title="Copiar resumen para WhatsApp">
+              📋 Copiar
+            </button>
+            <button type="button" id="btnResetDraw" class="btn-ghost btn-sm danger-text" title="Limpia los resultados actuales y vuelve al inicio sin borrar jugadores">
+              🧹 Reiniciar
+            </button>
+          </div>
+        </div>
+
+        <!-- Alerta de validación -->
+        <div id="alertBox" class="alert-box" role="alert" hidden></div>
+
+        <!-- Estado vacío inicial -->
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon" aria-hidden="true">🎮</div>
+          <h3>Listo para el sorteo</h3>
+          <p>
+            Cargá los jugadores, elegí si juegan <strong>1vs1</strong>, <strong>2vs2</strong> o <strong>3vs3</strong> y presioná
+            <strong>¡Armar Parejas y Cruces!</strong>
+          </p>
+        </div>
+
+        <!-- Contenedor de Resultados -->
+        <div id="resultsContainer" class="results-container" hidden>
+          <!-- Partidos VS -->
+          <div id="matchesList" class="matches-list"></div>
+
+          <!-- Pareja que espera ganador (cuando hay número impar de equipos) -->
+          <div id="waitingTeamBox" class="waiting-box" hidden>
+            <h3>⏳ Equipo en espera (Juega contra el ganador)</h3>
+            <div id="waitingTeamContent"></div>
+          </div>
+
+          <!-- Jugadores sobrantes (cuando no alcanzan a completar un equipo) -->
+          <div id="benchPlayersBox" class="bench-box" hidden>
+            <h3>🪑 Quedan en el banco (Entran en la próxima)</h3>
+            <p class="bench-subtitle">No alcanzaron para completar otro equipo de <span id="benchTeamSize">2</span>:</p>
+            <div id="benchPlayersList" class="bench-chips"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal Nativo para Editar / Agregar Clubes -->
+  <dialog id="clubsDialog" closedby="any" aria-labelledby="dialogTitle" class="custom-dialog">
+    <div class="dialog-header">
+      <div>
+        <h2 id="dialogTitle">⚽ Gestionar Clubes del Sorteo</h2>
+        <p class="dialog-subtitle" id="dialogPresetName">Categoría actual</p>
+      </div>
+      <button type="button" id="btnCloseDialog" class="btn-icon" aria-label="Cerrar ventana">✕</button>
+    </div>
+
+    <div class="dialog-body">
+      <form id="addClubForm" class="player-form" autocomplete="off">
+        <input
+          type="text"
+          id="clubInput"
+          placeholder="Agregar club (ej. Boca Juniors, Inter Miami)..."
+          aria-label="Nombre del club"
+        />
+        <button type="submit" class="btn-primary">Añadir</button>
+      </form>
+
+      <div class="dialog-toolbar">
+        <span class="helper-text">Hacé clic en un club para quitarlo de la bolsa del sorteo.</span>
+        <button type="button" id="btnResetPreset" class="btn-ghost btn-sm">Restaurar por defecto</button>
+      </div>
+
+      <ul id="clubsModalList" class="clubs-modal-list"></ul>
+    </div>
+
+    <div class="dialog-footer">
+      <button type="button" id="btnConfirmDialog" class="btn-primary">Listo</button>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
