@@ -7,7 +7,7 @@ El proyecto resuelve una necesidad habitual en juntadas de amigos (partidos de P
 
 ## 2. Evolución del Proyecto
 - **Versión inicial (`parejas para truco o play.py`):** Script de consola en Python que pedía nombres por `input()`, solicitaba un tamaño de equipo y extraía elementos con `random.choice()` + `.remove()`. No contemplaba jugadores sobrantes, no armaba enfrentamientos `VS`, no sorteaba clubes de fútbol y requería reescribir los nombres en cada ejecución.
-- **Versión actual (`index.html`, `styles.css`, `app.js`):** Aplicación Web client-side sin dependencias externas (Vanilla HTML5/CSS3/JS ES6+), pensada para abrirse instantáneamente en navegador de escritorio o móvil y persistir los datos en `localStorage`.
+- **Versión actual (`index.html`, `css/styles.css`, `js/app.js`):** Aplicación Web client-side sin dependencias externas (Vanilla HTML5/CSS3/JS ES6+), optimizada para abrirse localmente o desplegarse directamente vía **GitHub Pages** (en `main` / `root`) y persistir los datos en `localStorage`.
 
 ---
 

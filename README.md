@@ -38,13 +38,15 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
 
 ---
 
+
 ## 📁 Estructura de Archivos
 
 ```text
 ├── index.html                  # Estructura principal y modal nativo <dialog>
-├── styles.css                  # Diseño moderno, adaptable y animaciones CSS
-├── app.js                      # Lógica de sorteo (Fisher-Yates), estado y persistencia
-├── parejas para truco o play.py # Script original por consola en Python (versión inicial)
-├── README.md                   # Documentación de uso del proyecto
+├── css/
+│   └── styles.css              # Diseño moderno, adaptable y animaciones CSS
+├── js/
+│   └── app.js                  # Lógica de sorteo (Fisher-Yates), estado y persistencia
+├── README.md                   # Documentación de uso y guía de despliegue
 └── context.md                  # Contexto técnico, arquitectura y decisiones de diseño
 ```
