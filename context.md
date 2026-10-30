@@ -39,13 +39,19 @@ Toda la aplicación gira en torno a un único objeto de estado sincronizado en `
 3. **Asignación, Re-sorteo y Reinicio:**
    - **`#btnGenerate` y `#btnRerollAll`:** Ejecutan un nuevo sorteo completo barajando jugadores y clubes con Fisher-Yates.
    - **`#btnRerollClubs`:** Vuelve a barajar únicamente los clubes asignados a los equipos ya existentes sin alterar parejas ni cruces.
-   - **`#btnResetDraw`:** Resetea `state.lastDraw = null`, ocultando los enfrentamientos y restaurando la vista inicial sin borrar los jugadores registrados.
+   - **`#btnResetDraw` (`clearDrawUI`):** Resetea `state.lastDraw = null` y `state.tournament = null`, vacía los nodos de partidos y suplentes en el DOM y oculta los contenedores de resultados restaurando la vista inicial sin borrar los jugadores registrados.
    - **`rerollSingleTeamClub` (`🔄`):** Permite cambiar el club de un único equipo individualmente.
+4. **Motor de Torneos (`state.tournament`):**
+   - **Modalidades soportadas:** `groups` (Solo Fase de Grupos), `knockout` (Solo Cuadro Eliminatorio) y `both` (Fase de Grupos + Cuadro Eliminatorio).
+   - **Fixture Round-Robin (`generateRoundRobinRounds`):** Implementa el *Circle Method* (algoritmo de Berger) para generar las fechas todos contra todos de cada zona, asignando automáticamente fecha libre (`byeTeamId`) si el grupo tiene cantidad impar de equipos.
+   - **Tabla de Posiciones en vivo (`computeGroupStandings`):** Calcula `PJ`, `G`, `E`, `P`, `GF`, `GC`, `DG` y `PTS` (3 pts por victoria, 1 pt por empate) y ordena por `PTS` → `DG` → `GF` → orden alfabético.
+   - **Cuadro Eliminatorio Dinámico (`createKnockoutBracket` y `propagateBracketWinners`):** Calcula la potencia de 2 inmediata superior (`bracketSize` = 2, 4, 8 o 16) para rotular automáticamente **Octavos de Final**, **Cuartos de Final**, **Semifinales** y **Final**. Asigna pases directos (`isBye: true`) a los mejores preclasificados cuando el número de equipos no es potencia de 2 y propaga los ganadores ronda a ronda (por resultado numérico o selección directa con `✓ Ganó`) hasta coronar al campeón.
 
 ---
 
 ## 5. Estándares Web Modernos y Arquitectura Responsive
 - **`<dialog closedby="any">` adaptable a teclados móviles:** El gestor de clubes utiliza el elemento nativo `<dialog>` con apertura modal (`showModal()`), dimensiones acotadas a `max-block-size: min(88dvh, 660px)` con cuerpo interno desplazable (`.dialog-body`) y listener de fallback por coordenadas (`getBoundingClientRect()`) para navegadores sin soporte nativo de `closedBy`.
+- **Tablas de Posiciones Responsivas (`responsive-table`):** Las tablas de grupos usan `<div tabindex="0" role="region" aria-labelledby="..." class="table-wrapper">` con `container-type: inline-size`, encabezados `position: sticky` tanto en `thead` como en `tbody th`, y una regla `@container (width < 440px)` que transforma las filas en tarjetas apiladas inyectando los nombres de columna con `td:nth-child(n)::before` y variables CSS (`--label-*`).
 - **Container Queries (`container-type: inline-size` + `@container`):** Los paneles (`.panel`) y las tarjetas de partido (`.match-card`) miden su propio ancho disponible en lugar de depender únicamente del viewport, con fallback progresivo mediante `@supports (container-type: inline-size)` para `.match-grid` y `.stats-bar`.
 - **Unidades Dinámicas (`dvh` / `dvw`), `safe-area-inset` y Tipografía Fluida (`clamp()`):** Uso de `100dvh` para evitar saltos por la barra de direcciones del navegador móvil, `env(safe-area-inset-*)` para pantallas con *notch*, y `clamp()` para escalar textos y espaciados desde móviles pequeños (`320px`) hasta Smart TVs.
 - **Ergonomía Táctil y Control de Scroll:** Inputs con `font-size: max(16px, 0.95rem)` para prevenir el auto-zoom en iOS Safari, `touch-action: manipulation` y áreas de toque ampliadas bajo `@media (pointer: coarse)`, más `overscroll-behavior: contain`, `scrollbar-gutter: stable` y `flex-wrap: balance` en listas de chips.
@@ -54,5 +60,5 @@ Toda la aplicación gira en torno a un único objeto de estado sincronizado en `
 ---
 
 ## 6. Posibles Extensiones Futuras
-- **Anotador de Truco / Marcador de Goles:** Sumar un contador interactivo dentro de cada tarjeta de partido para registrar el resultado y pasar automáticamente al ganador contra el equipo en espera.
-- **Historial de Torneos / Rey de la Cancha:** Rotación automática donde el equipo perdedor sale y entra el equipo en espera o los jugadores del banco.
+- **Tanteador de Truco de 30 puntos integrado:** Modal rápido para sumar porotos ("Buenas" y "Malas") dentro de un partido del torneo.
+- **Historial de Campeones / Ranking de Amigos:** Guardar estadísticas históricas de quién ganó más torneos en el grupo de amigos.

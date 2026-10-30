@@ -184,9 +184,108 @@
             <p class="bench-subtitle">No alcanzaron para completar otro equipo de <span id="benchTeamSize">2</span>:</p>
             <div id="benchPlayersList" class="bench-chips"></div>
           </div>
+
+          <!-- Configurador para confirmar parejas e iniciar Torneo -->
+          <div id="tournamentSetupBox" class="tournament-setup-box">
+            <div class="tournament-setup-header">
+              <div>
+                <h3>🏆 ¿Armamos un Torneo con estos equipos?</h3>
+                <p>Confirmá las parejas/equipos sorteados para llevar el fixture, tabla de posiciones o llaves eliminatorias.</p>
+              </div>
+            </div>
+
+            <div class="tournament-setup-grid">
+              <div class="field-group">
+                <label for="tournamentFormatSelect">Formato de competencia:</label>
+                <select id="tournamentFormatSelect">
+                  <option value="both">🏆 Fase de Grupos + Cuadro Eliminatorio</option>
+                  <option value="groups">📊 Solo Fase de Grupos (Liga / Todos contra todos)</option>
+                  <option value="knockout">🥊 Solo Cuadro Eliminatorio (Octavos / Cuartos / Semis / Final)</option>
+                </select>
+              </div>
+
+              <div class="field-group" id="groupCountField">
+                <label for="groupCountSelect">Distribución de Grupos:</label>
+                <select id="groupCountSelect">
+                  <option value="1">1 Grupo único (Todos contra todos)</option>
+                  <option value="2">2 Grupos (Zona A y Zona B)</option>
+                  <option value="4">4 Grupos (Zonas A, B, C y D)</option>
+                </select>
+              </div>
+
+              <div class="field-group" id="qualifiersField">
+                <label for="qualifiersSelect">Clasifican a las llaves:</label>
+                <select id="qualifiersSelect">
+                  <option value="2">Top 2 (Final directa)</option>
+                  <option value="4" selected>Top 4 (Semifinales)</option>
+                  <option value="8">Top 8 (Cuartos de Final)</option>
+                  <option value="16">Top 16 (Octavos de Final)</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="button" id="btnStartTournament" class="btn-tournament-start">
+              ✅ Confirmar Equipos y Generar Torneo
+            </button>
+          </div>
         </div>
       </section>
     </main>
+
+    <!-- Sección de Seguimiento de Torneo (Fase de Grupos y/o Cuadro Eliminatorio) -->
+    <section id="tournamentSection" class="panel tournament-panel" aria-labelledby="tournament-heading" hidden>
+      <div class="panel-header tournament-main-header">
+        <div class="tournament-title-group">
+          <h2 id="tournament-heading">🏆 Seguimiento del Torneo</h2>
+          <span id="tournamentModeBadge" class="tournament-badge">En curso</span>
+        </div>
+        <div class="header-actions">
+          <button type="button" id="btnCopyTournament" class="btn-secondary btn-sm" title="Copiar tabla, fixture y llaves para WhatsApp">
+            📋 Copiar Torneo
+          </button>
+          <button type="button" id="btnResetTournament" class="btn-ghost btn-sm danger-text" title="Cerrar el torneo actual">
+            🗑️ Finalizar Torneo
+          </button>
+        </div>
+      </div>
+
+      <!-- Banner de Campeón -->
+      <div id="championBanner" class="champion-banner" hidden>
+        <div class="champion-trophy" aria-hidden="true">🏆</div>
+        <div class="champion-info">
+          <span class="champion-label">¡CAMPEÓN DEL TORNEO!</span>
+          <h3 id="championTeamName">-</h3>
+          <p id="championClubName"></p>
+        </div>
+      </div>
+
+      <!-- Contenedor de Fase de Grupos -->
+      <div id="groupStageContainer" class="tournament-stage-block" hidden>
+        <div class="stage-header">
+          <div>
+            <h3>📊 Fase de Grupos y Fixture</h3>
+            <p class="helper-text">Cargá los goles o tantos de cada partido; la tabla de posiciones se actualiza sola.</p>
+          </div>
+          <button type="button" id="btnAdvanceToKnockout" class="btn-primary" hidden>
+            ⚡ Cerrar Grupos y Generar Cuadro Final
+          </button>
+        </div>
+        <div id="groupsWrapper" class="groups-wrapper"></div>
+      </div>
+
+      <!-- Contenedor de Cuadro Eliminatorio (Octavos, Cuartos, Semis, Final) -->
+      <div id="knockoutStageContainer" class="tournament-stage-block" hidden>
+        <div class="stage-header">
+          <div>
+            <h3>🥊 Cuadro Eliminatorio (Playoffs)</h3>
+            <p class="helper-text">
+              Ingresá el resultado o tocá el botón <strong>✓ Ganó</strong> en un equipo (ideal para penales o Truco) para avanzarlo de ronda.
+            </p>
+          </div>
+        </div>
+        <div id="bracketWrapper" class="bracket-wrapper" tabindex="0" role="region" aria-label="Cuadro de eliminatorias"></div>
+      </div>
+    </section>
   </div>
 
   <!-- Modal Nativo para Editar / Agregar Clubes -->

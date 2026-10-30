@@ -16,6 +16,12 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
   - **Editor de clubes integrado:** Podés agregar o quitar clubes de cada lista o restaurar los valores por defecto.
   - **Re-sorteo independiente:** Botón para **volver a sortear todos los clubes** sin desarmar las parejas ya armadas, o botón `🔄` en cada tarjeta para **cambiar el club de un solo equipo**.
   - Opción para **evitar clubes repetidos** en el mismo sorteo.
+- **🏆 Seguimiento Completo de Torneo (Fase de Grupos y/o Eliminatorias):**
+  - Una vez conformadas las parejas/equipos (y sus clubes), podés presionar **✅ Confirmar Equipos y Generar Torneo** eligiendo entre 3 modalidades:
+    1. **📊 Solo Fase de Grupos (Liga):** Fixture por fechas todos contra todos (1, 2 o 4 zonas) con **Tabla de Posiciones en vivo** (`PJ`, `G`, `E`, `P`, `GF`, `GC`, `DG`, `PTS`).
+    2. **🥊 Solo Cuadro Eliminatorio (Playoffs):** Arma automáticamente las llaves de **Octavos de Final**, **Cuartos de Final**, **Semifinales** y **Final** según la cantidad de equipos, asignando pases directos (*BYE*) si el número de equipos es impar o no es potencia de 2.
+    3. **🏆 Fase de Grupos + Cuadro Eliminatorio (Estilo Copa / Mundial):** Se juega primero la fase de grupos y, con un clic en **⚡ Cerrar Grupos y Generar Cuadro Final**, clasifica automáticamente a los mejores equipos (cruzando `1° Zona A vs 2° Zona B`, etc.) hacia las llaves eliminatorias.
+  - **Definición por goles/tantos o penales:** En las llaves eliminatorias podés cargar el resultado numérico o tocar el botón **`✓ Ganó`** para avanzar un equipo por penales o partido de Truco.
 - **Control y Re-sorteo:**
   - **🎲 ¡Armar Parejas y Cruces! / 🔄 Re-sortear todo:** Cada vez que se presiona, vuelve a mezclar de cero a los jugadores activos y sus clubes.
   - **⚽ Solo Clubes:** Mantiene fijas las parejas y cruces ya armados y solo vuelve a barajar los equipos de fútbol.

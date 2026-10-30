@@ -99,7 +99,8 @@ const state = {
   selectedPreset: "argentina",
   noRepeatClubs: true,
   presets: structuredClone(DEFAULT_PRESETS),
-  lastDraw: null // { teams: [{ id, name, members, club }], bench: [string] }
+  lastDraw: null, // { teams: [{ id, name, members, club }], bench: [string] }
+  tournament: null // { format, groupCount, qualifiersCount, teams, groups, bracket }
 };
 
 // Referencias del DOM
@@ -140,6 +141,28 @@ const benchPlayersBox = document.getElementById("benchPlayersBox");
 const benchTeamSize = document.getElementById("benchTeamSize");
 const benchPlayersList = document.getElementById("benchPlayersList");
 
+// Referencias de Configuración y Seguimiento de Torneo
+const tournamentSetupBox = document.getElementById("tournamentSetupBox");
+const tournamentFormatSelect = document.getElementById("tournamentFormatSelect");
+const groupCountField = document.getElementById("groupCountField");
+const groupCountSelect = document.getElementById("groupCountSelect");
+const qualifiersField = document.getElementById("qualifiersField");
+const qualifiersSelect = document.getElementById("qualifiersSelect");
+const btnStartTournament = document.getElementById("btnStartTournament");
+
+const tournamentSection = document.getElementById("tournamentSection");
+const tournamentModeBadge = document.getElementById("tournamentModeBadge");
+const btnCopyTournament = document.getElementById("btnCopyTournament");
+const btnResetTournament = document.getElementById("btnResetTournament");
+const championBanner = document.getElementById("championBanner");
+const championTeamName = document.getElementById("championTeamName");
+const championClubName = document.getElementById("championClubName");
+const groupStageContainer = document.getElementById("groupStageContainer");
+const btnAdvanceToKnockout = document.getElementById("btnAdvanceToKnockout");
+const groupsWrapper = document.getElementById("groupsWrapper");
+const knockoutStageContainer = document.getElementById("knockoutStageContainer");
+const bracketWrapper = document.getElementById("bracketWrapper");
+
 // Referencias del Modal Dialog
 const clubsDialog = document.getElementById("clubsDialog");
 const dialogPresetName = document.getElementById("dialogPresetName");
@@ -169,7 +192,9 @@ function saveState() {
       clubsEnabled: state.clubsEnabled,
       selectedPreset: state.selectedPreset,
       noRepeatClubs: state.noRepeatClubs,
-      presets: state.presets
+      presets: state.presets,
+      lastDraw: state.lastDraw,
+      tournament: state.tournament
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (err) {
@@ -195,6 +220,12 @@ function loadState() {
           state.presets[key].clubs = parsed.presets[key].clubs;
         }
       }
+    }
+    if (parsed.lastDraw && Array.isArray(parsed.lastDraw.teams)) {
+      state.lastDraw = parsed.lastDraw;
+    }
+    if (parsed.tournament && typeof parsed.tournament === "object") {
+      state.tournament = parsed.tournament;
     }
   } catch (err) {
     console.warn("No se pudo leer el estado guardado:", err);
@@ -391,6 +422,7 @@ function rerollSingleTeamClub(teamId) {
   }
 
   targetTeam.club = candidates[Math.floor(Math.random() * candidates.length)];
+  saveState();
   renderDrawResults();
 }
 
@@ -435,6 +467,7 @@ function generateDraw() {
     bench
   };
 
+  saveState();
   renderDrawResults();
 }
 
@@ -500,6 +533,8 @@ function renderDrawResults() {
   } else {
     benchPlayersBox.hidden = true;
   }
+
+  syncTournamentSetupOptions();
 }
 
 function createTeamElement(team) {
@@ -642,6 +677,833 @@ function addClubsToPreset(rawInput) {
   renderClubsModal();
 }
 
+// ==========================================================================
+// Motor de Torneos: Fase de Grupos, Fixture por Fechas y Cuadro Eliminatorio
+// ==========================================================================
+
+function getTeamDisplayName(team) {
+  if (!team) return "Por definir";
+  return team.members.join(" + ");
+}
+
+function getTeamClubLabel(team) {
+  if (!team || !state.clubsEnabled || !team.club) return "";
+  return team.club;
+}
+
+// Ajusta las opciones válidas de Grupos y Clasificados según cuántos equipos hay
+function syncTournamentSetupOptions() {
+  if (!state.lastDraw || !tournamentSetupBox) return;
+  const numTeams = state.lastDraw.teams.length;
+  const format = tournamentFormatSelect.value;
+
+  groupCountField.hidden = format === "knockout";
+  qualifiersField.hidden = format !== "both";
+
+  // Habilitar cantidad de grupos según mínimo de 2 equipos por grupo
+  Array.from(groupCountSelect.options).forEach((opt) => {
+    const val = Number(opt.value);
+    opt.disabled = val > 1 && numTeams < val * 2;
+  });
+  if (groupCountSelect.selectedOptions[0]?.disabled) {
+    groupCountSelect.value = "1";
+  }
+
+  // Habilitar opciones de clasificados según total de equipos
+  Array.from(qualifiersSelect.options).forEach((opt) => {
+    const val = Number(opt.value);
+    opt.disabled = val > numTeams;
+  });
+
+  if (qualifiersSelect.selectedOptions[0]?.disabled) {
+    const validOpts = Array.from(qualifiersSelect.options).filter((o) => !o.disabled);
+    if (validOpts.length > 0) {
+      qualifiersSelect.value = validOpts[validOpts.length - 1].value;
+    }
+  }
+}
+
+// Algoritmo Round-Robin (Circle Method) para generar fechas todos contra todos
+function generateRoundRobinRounds(groupTeams, groupId) {
+  const list = [...groupTeams];
+  if (list.length % 2 === 1) {
+    list.push({ isBye: true });
+  }
+
+  const n = list.length;
+  const totalRounds = n - 1;
+  const half = n / 2;
+  const rounds = [];
+
+  for (let r = 0; r < totalRounds; r++) {
+    const matches = [];
+    let byeTeamId = null;
+
+    for (let i = 0; i < half; i++) {
+      const t1 = list[i];
+      const t2 = list[n - 1 - i];
+
+      if (t1.isBye) {
+        byeTeamId = t2.id;
+      } else if (t2.isBye) {
+        byeTeamId = t1.id;
+      } else {
+        const home = r % 2 === 0 ? t1 : t2;
+        const away = r % 2 === 0 ? t2 : t1;
+        matches.push({
+          id: `${groupId}-r${r + 1}-m${i + 1}`,
+          homeId: home.id,
+          awayId: away.id,
+          homeScore: null,
+          awayScore: null
+        });
+      }
+    }
+
+    rounds.push({
+      roundNumber: r + 1,
+      matches,
+      byeTeamId
+    });
+
+    // Rotar dejando fijo el primer elemento
+    const last = list.pop();
+    list.splice(1, 0, last);
+  }
+
+  return rounds;
+}
+
+function createGroupsStage(teams, groupCount) {
+  const groups = [];
+  const letters = ["A", "B", "C", "D", "E", "F"];
+
+  for (let g = 0; g < groupCount; g++) {
+    groups.push({
+      id: `group-${g + 1}`,
+      name: groupCount === 1 ? "Grupo Único (Liga)" : `Grupo ${letters[g] || g + 1}`,
+      teamIds: [],
+      rounds: []
+    });
+  }
+
+  teams.forEach((team, idx) => {
+    groups[idx % groupCount].teamIds.push(team.id);
+  });
+
+  groups.forEach((group) => {
+    const groupTeams = group.teamIds.map((id) => teams.find((t) => t.id === id));
+    group.rounds = generateRoundRobinRounds(groupTeams, group.id);
+  });
+
+  return groups;
+}
+
+function computeGroupStandings(group, teamsMap) {
+  const statsMap = new Map();
+
+  group.teamIds.forEach((id) => {
+    statsMap.set(id, {
+      team: teamsMap.get(id),
+      pj: 0,
+      g: 0,
+      e: 0,
+      p: 0,
+      gf: 0,
+      gc: 0,
+      dg: 0,
+      pts: 0
+    });
+  });
+
+  group.rounds.forEach((round) => {
+    round.matches.forEach((match) => {
+      if (match.homeScore === null || match.awayScore === null) return;
+      const hs = Number(match.homeScore);
+      const as = Number(match.awayScore);
+      if (Number.isNaN(hs) || Number.isNaN(as)) return;
+
+      const homeStat = statsMap.get(match.homeId);
+      const awayStat = statsMap.get(match.awayId);
+      if (!homeStat || !awayStat) return;
+
+      homeStat.pj += 1;
+      awayStat.pj += 1;
+      homeStat.gf += hs;
+      homeStat.gc += as;
+      homeStat.dg = homeStat.gf - homeStat.gc;
+
+      awayStat.gf += as;
+      awayStat.gc += hs;
+      awayStat.dg = awayStat.gf - awayStat.gc;
+
+      if (hs > as) {
+        homeStat.g += 1;
+        homeStat.pts += 3;
+        awayStat.p += 1;
+      } else if (hs < as) {
+        awayStat.g += 1;
+        awayStat.pts += 3;
+        homeStat.p += 1;
+      } else {
+        homeStat.e += 1;
+        awayStat.e += 1;
+        homeStat.pts += 1;
+        awayStat.pts += 1;
+      }
+    });
+  });
+
+  return Array.from(statsMap.values()).sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    if (b.dg !== a.dg) return b.dg - a.dg;
+    if (b.gf !== a.gf) return b.gf - a.gf;
+    return getTeamDisplayName(a.team).localeCompare(getTeamDisplayName(b.team));
+  });
+}
+
+function getRoundTitle(matchesCount) {
+  if (matchesCount === 1) return "🏆 Final";
+  if (matchesCount === 2) return "Semifinales";
+  if (matchesCount === 4) return "Cuartos de Final";
+  if (matchesCount === 8) return "Octavos de Final";
+  return `Ronda de ${matchesCount * 2}`;
+}
+
+function createKnockoutBracket(seededTeams) {
+  const n = seededTeams.length;
+  const bracketSize = Math.pow(2, Math.ceil(Math.log2(Math.max(2, n))));
+  const totalRounds = Math.log2(bracketSize);
+  const firstRoundMatchesCount = bracketSize / 2;
+  const numByes = bracketSize - n;
+
+  const rounds = [];
+  const firstRoundMatches = [];
+
+  for (let i = 0; i < firstRoundMatchesCount; i++) {
+    const teamA = seededTeams[i] || null;
+    const isBye = i < numByes;
+    const teamB = isBye ? null : seededTeams[bracketSize - 1 - i] || null;
+
+    firstRoundMatches.push({
+      id: `ko-r0-m${i}`,
+      teamAId: teamA ? teamA.id : null,
+      teamBId: teamB ? teamB.id : null,
+      scoreA: null,
+      scoreB: null,
+      manualWinnerId: null,
+      winnerId: isBye && teamA ? teamA.id : null,
+      isBye
+    });
+  }
+
+  rounds.push({
+    roundIndex: 0,
+    title: getRoundTitle(firstRoundMatchesCount),
+    matches: firstRoundMatches
+  });
+
+  for (let r = 1; r < totalRounds; r++) {
+    const count = bracketSize / Math.pow(2, r + 1);
+    const matches = [];
+    for (let m = 0; m < count; m++) {
+      matches.push({
+        id: `ko-r${r}-m${m}`,
+        teamAId: null,
+        teamBId: null,
+        scoreA: null,
+        scoreB: null,
+        manualWinnerId: null,
+        winnerId: null,
+        isBye: false
+      });
+    }
+    rounds.push({
+      roundIndex: r,
+      title: getRoundTitle(count),
+      matches
+    });
+  }
+
+  const bracket = { rounds, championId: null };
+  propagateBracketWinners(bracket);
+  return bracket;
+}
+
+function evaluateMatchWinner(match) {
+  if (match.isBye && match.teamAId) return match.teamAId;
+  if (!match.teamAId || !match.teamBId) return null;
+
+  if (
+    match.manualWinnerId &&
+    (match.manualWinnerId === match.teamAId || match.manualWinnerId === match.teamBId)
+  ) {
+    return match.manualWinnerId;
+  }
+
+  if (match.scoreA !== null && match.scoreB !== null) {
+    const sa = Number(match.scoreA);
+    const sb = Number(match.scoreB);
+    if (!Number.isNaN(sa) && !Number.isNaN(sb)) {
+      if (sa > sb) return match.teamAId;
+      if (sb > sa) return match.teamBId;
+    }
+  }
+
+  return null;
+}
+
+function propagateBracketWinners(bracket) {
+  if (!bracket || !Array.isArray(bracket.rounds)) return;
+
+  for (let r = 0; r < bracket.rounds.length; r++) {
+    const round = bracket.rounds[r];
+    round.matches.forEach((match, mIdx) => {
+      match.winnerId = evaluateMatchWinner(match);
+
+      if (r + 1 < bracket.rounds.length) {
+        const nextMatch = bracket.rounds[r + 1].matches[Math.floor(mIdx / 2)];
+        const slotKey = mIdx % 2 === 0 ? "teamAId" : "teamBId";
+        const previousTeamId = nextMatch[slotKey];
+
+        if (previousTeamId !== match.winnerId) {
+          nextMatch[slotKey] = match.winnerId;
+          // Si cambió uno de los rivales en la siguiente ronda, limpiamos su resultado previo
+          nextMatch.scoreA = null;
+          nextMatch.scoreB = null;
+          nextMatch.manualWinnerId = null;
+          nextMatch.winnerId = null;
+        }
+      }
+    });
+  }
+
+  const finalRound = bracket.rounds[bracket.rounds.length - 1];
+  const finalMatch = finalRound?.matches[0];
+  bracket.championId = finalMatch?.winnerId || null;
+}
+
+function startTournamentFromDraw() {
+  if (!state.lastDraw || state.lastDraw.teams.length < 2) return;
+
+  const format = tournamentFormatSelect.value; // "both" | "groups" | "knockout"
+  const groupCount = Number(groupCountSelect.value) || 1;
+  const qualifiersCount = Math.min(
+    Number(qualifiersSelect.value) || 2,
+    state.lastDraw.teams.length
+  );
+
+  // Clonamos los equipos confirmados para el torneo
+  const confirmedTeams = structuredClone(state.lastDraw.teams);
+
+  const tournament = {
+    format,
+    groupCount,
+    qualifiersCount,
+    teams: confirmedTeams,
+    groups: null,
+    bracket: null
+  };
+
+  if (format === "groups" || format === "both") {
+    tournament.groups = createGroupsStage(confirmedTeams, groupCount);
+  }
+
+  if (format === "knockout") {
+    tournament.bracket = createKnockoutBracket(confirmedTeams);
+  }
+
+  state.tournament = tournament;
+  saveState();
+  renderTournament();
+  tournamentSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function advanceGroupsToKnockout() {
+  if (!state.tournament || !state.tournament.groups) return;
+  const { groups, teams, qualifiersCount } = state.tournament;
+  const teamsMap = new Map(teams.map((t) => [t.id, t]));
+
+  const groupStandingsList = groups.map((g) => computeGroupStandings(g, teamsMap));
+  const qualified = [];
+
+  if (groups.length === 2 && qualifiersCount === 4) {
+    // Cruce clásico: 1°A vs 2°B y 1°B vs 2°A
+    const gA = groupStandingsList[0];
+    const gB = groupStandingsList[1];
+    if (gA[0]) qualified.push(gA[0].team);
+    if (gB[0]) qualified.push(gB[0].team);
+    if (gA[1]) qualified.push(gA[1].team);
+    if (gB[1]) qualified.push(gB[1].team);
+  } else {
+    // Clasificación general intercalando posiciones por grupo (1° de cada grupo, luego 2°, etc.)
+    const maxRows = Math.max(...groupStandingsList.map((s) => s.length));
+    const bucketed = [];
+    for (let rank = 0; rank < maxRows; rank++) {
+      const tier = [];
+      groupStandingsList.forEach((standings) => {
+        if (standings[rank]) tier.push(standings[rank]);
+      });
+      tier.sort((a, b) => {
+        if (b.pts !== a.pts) return b.pts - a.pts;
+        if (b.dg !== a.dg) return b.dg - a.dg;
+        return b.gf - a.gf;
+      });
+      bucketed.push(...tier.map((row) => row.team));
+    }
+    qualified.push(...bucketed.slice(0, qualifiersCount));
+  }
+
+  state.tournament.bracket = createKnockoutBracket(qualified);
+  saveState();
+  renderTournament();
+  knockoutStageContainer.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderGroupStandingsIntoWrapper(tableContainer, group, teamsMap, highlightTopCount) {
+  const standings = computeGroupStandings(group, teamsMap);
+  tableContainer.innerHTML = "";
+
+  const captionId = `caption-${group.id}`;
+  tableContainer.setAttribute("aria-labelledby", captionId);
+
+  const table = document.createElement("table");
+  table.className = "standings-table";
+
+  const caption = document.createElement("caption");
+  caption.id = captionId;
+  caption.textContent = `Tabla de posiciones de ${group.name}`;
+  table.appendChild(caption);
+
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr>
+      <th scope="col">Equipo</th>
+      <th scope="col" title="Partidos Jugados">PJ</th>
+      <th scope="col" title="Ganados">G</th>
+      <th scope="col" title="Empatados">E</th>
+      <th scope="col" title="Perdidos">P</th>
+      <th scope="col" title="Goles/Tantos a Favor">GF</th>
+      <th scope="col" title="Goles/Tantos en Contra">GC</th>
+      <th scope="col" title="Diferencia">DG</th>
+      <th scope="col" title="Puntos">PTS</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  standings.forEach((row, idx) => {
+    const tr = document.createElement("tr");
+    if (idx < highlightTopCount) {
+      tr.className = "qualified-row";
+    }
+
+    const th = document.createElement("th");
+    th.scope = "row";
+
+    const posSpan = document.createElement("span");
+    posSpan.className = "standings-pos";
+    posSpan.textContent = idx + 1;
+
+    const nameText = document.createTextNode(getTeamDisplayName(row.team));
+    th.append(posSpan, nameText);
+
+    const clubLabel = getTeamClubLabel(row.team);
+    if (clubLabel) {
+      const clubSub = document.createElement("span");
+      clubSub.className = "standings-club-sub";
+      clubSub.textContent = `🛡️ ${clubLabel}`;
+      th.appendChild(clubSub);
+    }
+
+    const dgFormatted = row.dg > 0 ? `+${row.dg}` : String(row.dg);
+
+    tr.appendChild(th);
+    const cells = [row.pj, row.g, row.e, row.p, row.gf, row.gc, dgFormatted, row.pts];
+    cells.forEach((val, cIdx) => {
+      const td = document.createElement("td");
+      if (cIdx === cells.length - 1) td.className = "pts-cell";
+      td.textContent = val;
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  tableContainer.appendChild(table);
+}
+
+function updateChampionBanner(teamsMap) {
+  if (!state.tournament) {
+    championBanner.hidden = true;
+    return;
+  }
+
+  let championTeam = null;
+
+  if (state.tournament.bracket?.championId) {
+    championTeam = teamsMap.get(state.tournament.bracket.championId);
+  } else if (state.tournament.format === "groups" && state.tournament.groups?.length === 1) {
+    // Si es Liga Única y todos los partidos tienen resultado, coronamos al 1°
+    const group = state.tournament.groups[0];
+    const allPlayed = group.rounds.every((r) =>
+      r.matches.every((m) => m.homeScore !== null && m.awayScore !== null)
+    );
+    if (allPlayed && group.rounds.length > 0) {
+      const standings = computeGroupStandings(group, teamsMap);
+      championTeam = standings[0]?.team || null;
+    }
+  }
+
+  if (championTeam) {
+    championBanner.hidden = false;
+    championTeamName.textContent = getTeamDisplayName(championTeam);
+    const club = getTeamClubLabel(championTeam);
+    championClubName.textContent = club ? `🛡️ ${club}` : "";
+  } else {
+    championBanner.hidden = true;
+  }
+}
+
+function renderTournament() {
+  if (!state.tournament) {
+    tournamentSection.hidden = true;
+    return;
+  }
+
+  tournamentSection.hidden = false;
+  const { format, groups, bracket, teams, qualifiersCount } = state.tournament;
+  const teamsMap = new Map(teams.map((t) => [t.id, t]));
+
+  const formatLabels = {
+    both: "Grupos + Eliminatorias",
+    groups: "Fase de Grupos (Liga)",
+    knockout: "Cuadro Eliminatorio"
+  };
+  tournamentModeBadge.textContent = formatLabels[format] || "En curso";
+
+  // 1. Renderizar Fase de Grupos
+  if (groups && groups.length > 0) {
+    groupStageContainer.hidden = false;
+    btnAdvanceToKnockout.hidden = format !== "both";
+    btnAdvanceToKnockout.textContent = bracket
+      ? "🔄 Actualizar Clasificados al Cuadro Final"
+      : "⚡ Cerrar Grupos y Generar Cuadro Final";
+
+    groupsWrapper.innerHTML = "";
+    const highlightPerGroup =
+      format === "both"
+        ? Math.max(1, Math.floor(qualifiersCount / groups.length))
+        : 1;
+
+    groups.forEach((group) => {
+      const card = document.createElement("div");
+      card.className = "group-card";
+
+      const title = document.createElement("div");
+      title.className = "group-card-title";
+      title.innerHTML = `<span>📋 ${group.name}</span><span>${group.teamIds.length} equipos</span>`;
+
+      const tableWrapper = document.createElement("div");
+      tableWrapper.className = "table-wrapper";
+      tableWrapper.tabIndex = 0;
+      tableWrapper.setAttribute("role", "region");
+
+      renderGroupStandingsIntoWrapper(tableWrapper, group, teamsMap, highlightPerGroup);
+
+      const roundsContainer = document.createElement("div");
+      roundsContainer.className = "fixture-rounds";
+
+      group.rounds.forEach((round) => {
+        const roundCard = document.createElement("div");
+        roundCard.className = "fixture-round-card";
+
+        const roundTitle = document.createElement("div");
+        roundTitle.className = "fixture-round-title";
+        roundTitle.textContent = `Fecha ${round.roundNumber}`;
+        roundCard.appendChild(roundTitle);
+
+        const matchesListEl = document.createElement("div");
+        matchesListEl.className = "fixture-matches-list";
+
+        round.matches.forEach((match) => {
+          const homeTeam = teamsMap.get(match.homeId);
+          const awayTeam = teamsMap.get(match.awayId);
+
+          const row = document.createElement("div");
+          row.className = "fixture-match-row";
+
+          const homeDiv = document.createElement("div");
+          homeDiv.className = "fixture-team home";
+          homeDiv.textContent = getTeamDisplayName(homeTeam);
+          const homeClub = getTeamClubLabel(homeTeam);
+          if (homeClub) {
+            const sub = document.createElement("span");
+            sub.className = "fixture-team-club";
+            sub.textContent = `🛡️ ${homeClub}`;
+            homeDiv.appendChild(sub);
+          }
+
+          const scoreBox = document.createElement("div");
+          scoreBox.className = "fixture-score-box";
+
+          const inputHome = document.createElement("input");
+          inputHome.type = "number";
+          inputHome.min = "0";
+          inputHome.max = "99";
+          inputHome.placeholder = "-";
+          inputHome.className = "score-input";
+          inputHome.setAttribute("aria-label", `Goles de ${getTeamDisplayName(homeTeam)}`);
+          if (match.homeScore !== null) inputHome.value = match.homeScore;
+
+          const sep = document.createElement("span");
+          sep.textContent = "vs";
+          sep.style.fontSize = "0.75rem";
+          sep.style.color = "var(--text-muted)";
+
+          const inputAway = document.createElement("input");
+          inputAway.type = "number";
+          inputAway.min = "0";
+          inputAway.max = "99";
+          inputAway.placeholder = "-";
+          inputAway.className = "score-input";
+          inputAway.setAttribute("aria-label", `Goles de ${getTeamDisplayName(awayTeam)}`);
+          if (match.awayScore !== null) inputAway.value = match.awayScore;
+
+          const onScoreInput = () => {
+            match.homeScore = inputHome.value === "" ? null : Number(inputHome.value);
+            match.awayScore = inputAway.value === "" ? null : Number(inputAway.value);
+            saveState();
+            renderGroupStandingsIntoWrapper(tableWrapper, group, teamsMap, highlightPerGroup);
+            updateChampionBanner(teamsMap);
+          };
+
+          inputHome.addEventListener("input", onScoreInput);
+          inputAway.addEventListener("input", onScoreInput);
+
+          scoreBox.append(inputHome, sep, inputAway);
+
+          const awayDiv = document.createElement("div");
+          awayDiv.className = "fixture-team away";
+          awayDiv.textContent = getTeamDisplayName(awayTeam);
+          const awayClub = getTeamClubLabel(awayTeam);
+          if (awayClub) {
+            const sub = document.createElement("span");
+            sub.className = "fixture-team-club";
+            sub.textContent = `🛡️ ${awayClub}`;
+            awayDiv.appendChild(sub);
+          }
+
+          row.append(homeDiv, scoreBox, awayDiv);
+          matchesListEl.appendChild(row);
+        });
+
+        roundCard.appendChild(matchesListEl);
+
+        if (round.byeTeamId) {
+          const byeTeam = teamsMap.get(round.byeTeamId);
+          const byeNote = document.createElement("div");
+          byeNote.className = "fixture-bye-note";
+          byeNote.textContent = `⏳ Libre en esta fecha: ${getTeamDisplayName(byeTeam)}`;
+          roundCard.appendChild(byeNote);
+        }
+
+        roundsContainer.appendChild(roundCard);
+      });
+
+      card.append(title, tableWrapper, roundsContainer);
+      groupsWrapper.appendChild(card);
+    });
+  } else {
+    groupStageContainer.hidden = true;
+  }
+
+  // 2. Renderizar Cuadro Eliminatorio
+  if (bracket && Array.isArray(bracket.rounds)) {
+    knockoutStageContainer.hidden = false;
+    renderBracketColumns(bracket, teamsMap);
+  } else {
+    knockoutStageContainer.hidden = true;
+  }
+
+  updateChampionBanner(teamsMap);
+}
+
+function renderBracketColumns(bracket, teamsMap) {
+  bracketWrapper.innerHTML = "";
+
+  bracket.rounds.forEach((round) => {
+    const col = document.createElement("div");
+    col.className = "bracket-round-col";
+
+    const header = document.createElement("div");
+    header.className = "bracket-round-header";
+    header.textContent = round.title;
+
+    const matchesCol = document.createElement("div");
+    matchesCol.className = "bracket-matches-col";
+
+    round.matches.forEach((match, idx) => {
+      const card = document.createElement("div");
+      card.className = "bracket-match-card";
+
+      const label = document.createElement("div");
+      label.className = "bracket-match-label";
+      label.innerHTML = `<span>Llave ${idx + 1}</span><span>${
+        match.isBye ? "Pase directo (BYE)" : ""
+      }</span>`;
+      card.appendChild(label);
+
+      const teamA = teamsMap.get(match.teamAId);
+      const teamB = teamsMap.get(match.teamBId);
+
+      card.appendChild(
+        createBracketTeamRow(match, "A", teamA, bracket, teamsMap)
+      );
+
+      if (!match.isBye) {
+        card.appendChild(
+          createBracketTeamRow(match, "B", teamB, bracket, teamsMap)
+        );
+      }
+
+      matchesCol.appendChild(card);
+    });
+
+    col.append(header, matchesCol);
+    bracketWrapper.appendChild(col);
+  });
+}
+
+function createBracketTeamRow(match, side, team, bracket, teamsMap) {
+  const row = document.createElement("div");
+  const isWinner = team && match.winnerId === team.id;
+  row.className = `bracket-team-row${isWinner ? " winner" : ""}`;
+
+  const info = document.createElement("div");
+  info.className = "bracket-team-info";
+
+  const nameDiv = document.createElement("div");
+  nameDiv.className = "bracket-team-name";
+  nameDiv.textContent = team ? getTeamDisplayName(team) : "⏳ Esperando rival...";
+  info.appendChild(nameDiv);
+
+  const club = getTeamClubLabel(team);
+  if (club) {
+    const clubDiv = document.createElement("div");
+    clubDiv.className = "bracket-team-club";
+    clubDiv.textContent = `🛡️ ${club}`;
+    info.appendChild(clubDiv);
+  }
+
+  row.appendChild(info);
+
+  if (team && !match.isBye && match.teamAId && match.teamBId) {
+    const controls = document.createElement("div");
+    controls.className = "bracket-controls";
+
+    const scoreKey = side === "A" ? "scoreA" : "scoreB";
+    const scoreInput = document.createElement("input");
+    scoreInput.type = "number";
+    scoreInput.min = "0";
+    scoreInput.max = "99";
+    scoreInput.placeholder = "-";
+    scoreInput.className = "score-input";
+    scoreInput.setAttribute("aria-label", `Resultado de ${getTeamDisplayName(team)}`);
+    if (match[scoreKey] !== null) scoreInput.value = match[scoreKey];
+
+    scoreInput.addEventListener("change", () => {
+      match[scoreKey] = scoreInput.value === "" ? null : Number(scoreInput.value);
+      match.manualWinnerId = null;
+      propagateBracketWinners(bracket);
+      saveState();
+      renderBracketColumns(bracket, teamsMap);
+      updateChampionBanner(teamsMap);
+    });
+
+    const pickBtn = document.createElement("button");
+    pickBtn.type = "button";
+    pickBtn.className = "btn-pick-winner";
+    pickBtn.title = "Marcar como ganador de la llave (Penales / Truco)";
+    pickBtn.textContent = isWinner ? "✓ Ganó" : "Ganó";
+    pickBtn.addEventListener("click", () => {
+      match.manualWinnerId = match.manualWinnerId === team.id ? null : team.id;
+      propagateBracketWinners(bracket);
+      saveState();
+      renderBracketColumns(bracket, teamsMap);
+      updateChampionBanner(teamsMap);
+    });
+
+    controls.append(scoreInput, pickBtn);
+    row.appendChild(controls);
+  }
+
+  return row;
+}
+
+async function copyTournamentToClipboard() {
+  if (!state.tournament) return;
+  const { groups, bracket, teams } = state.tournament;
+  const teamsMap = new Map(teams.map((t) => [t.id, t]));
+  const lines = ["🏆 *REPORTE DEL TORNEO* 🏆", ""];
+
+  if (!championBanner.hidden) {
+    lines.push(`👑 *CAMPEÓN:* ${championTeamName.textContent} ${championClubName.textContent}`);
+    lines.push("");
+  }
+
+  if (groups && groups.length > 0) {
+    groups.forEach((group) => {
+      lines.push(`📊 *${group.name}*`);
+      const standings = computeGroupStandings(group, teamsMap);
+      standings.forEach((s, i) => {
+        const club = getTeamClubLabel(s.team) ? ` (${getTeamClubLabel(s.team)})` : "";
+        lines.push(
+          `${i + 1}. *${getTeamDisplayName(s.team)}*${club} — *${s.pts} pts* (PJ:${s.pj} | DG:${
+            s.dg > 0 ? `+${s.dg}` : s.dg
+          })`
+        );
+      });
+      lines.push("");
+    });
+  }
+
+  if (bracket && bracket.rounds) {
+    lines.push("🥊 *CUADRO ELIMINATORIO*");
+    bracket.rounds.forEach((round) => {
+      lines.push(`*— ${round.title} —*`);
+      round.matches.forEach((m) => {
+        const tA = teamsMap.get(m.teamAId);
+        const tB = teamsMap.get(m.teamBId);
+        if (m.isBye && tA) {
+          lines.push(`• ${getTeamDisplayName(tA)} _(Pasa directo)_`);
+        } else {
+          const nameA = tA ? getTeamDisplayName(tA) : "Por definir";
+          const nameB = tB ? getTeamDisplayName(tB) : "Por definir";
+          const scA = m.scoreA !== null ? ` [${m.scoreA}]` : "";
+          const scB = m.scoreB !== null ? `[${m.scoreB}] ` : "";
+          const winMarkA = m.winnerId && m.winnerId === m.teamAId ? "✅ " : "";
+          const winMarkB = m.winnerId && m.winnerId === m.teamBId ? " ✅" : "";
+          lines.push(`• ${winMarkA}${nameA}${scA} vs ${scB}${nameB}${winMarkB}`);
+        }
+      });
+      lines.push("");
+    });
+  }
+
+  try {
+    await navigator.clipboard.writeText(lines.join("\n"));
+    const original = btnCopyTournament.textContent;
+    btnCopyTournament.textContent = "✅ ¡Torneo Copiado!";
+    setTimeout(() => {
+      btnCopyTournament.textContent = original;
+    }, 1800);
+  } catch {
+    showAlert("No se pudo copiar el resumen del torneo.");
+  }
+}
+
 // Eventos
 modeButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -663,19 +1525,30 @@ playerForm.addEventListener("submit", (e) => {
 });
 
 btnLoadDemo.addEventListener("click", () => {
-  const demoFriends = ["Jony", "Lucas", "Matías", "Nico", "Fede", "Agus"];
+  const demoFriends = ["Jony", "Lucas", "Matías", "Nico", "Fede", "Agus", "Santi", "Tomi"];
   addPlayersFromString(demoFriends.join(", "));
 });
+
+function clearDrawUI() {
+  matchesList.innerHTML = "";
+  waitingTeamContent.innerHTML = "";
+  benchPlayersList.innerHTML = "";
+  waitingTeamBox.hidden = true;
+  benchPlayersBox.hidden = true;
+  resultsContainer.hidden = true;
+  resultHeaderActions.hidden = true;
+  emptyState.hidden = false;
+  hideAlert();
+}
 
 btnClearPlayers.addEventListener("click", () => {
   state.players = [];
   state.lastDraw = null;
+  state.tournament = null;
   saveState();
   renderPlayers();
-  emptyState.hidden = false;
-  resultsContainer.hidden = true;
-  resultHeaderActions.hidden = true;
-  hideAlert();
+  renderTournament();
+  clearDrawUI();
 });
 
 toggleClubs.addEventListener("change", () => {
@@ -685,7 +1558,11 @@ toggleClubs.addEventListener("change", () => {
 
   if (state.lastDraw) {
     assignClubsToTeams(state.lastDraw.teams);
+    saveState();
     renderDrawResults();
+  }
+  if (state.tournament) {
+    renderTournament();
   }
 });
 
@@ -696,6 +1573,7 @@ presetSelect.addEventListener("change", () => {
 
   if (state.lastDraw && state.clubsEnabled) {
     assignClubsToTeams(state.lastDraw.teams);
+    saveState();
     renderDrawResults();
   }
 });
@@ -720,6 +1598,7 @@ btnRerollAll?.addEventListener("click", () => {
 btnRerollClubs.addEventListener("click", () => {
   if (!state.lastDraw) return;
   assignClubsToTeams(state.lastDraw.teams);
+  saveState();
   renderDrawResults();
 });
 
@@ -727,10 +1606,21 @@ btnCopyWhatsapp.addEventListener("click", copySummaryToClipboard);
 
 btnResetDraw?.addEventListener("click", () => {
   state.lastDraw = null;
-  emptyState.hidden = false;
-  resultsContainer.hidden = true;
-  resultHeaderActions.hidden = true;
-  hideAlert();
+  state.tournament = null;
+  saveState();
+  renderTournament();
+  clearDrawUI();
+});
+
+// Eventos de Configuración y Seguimiento de Torneo
+tournamentFormatSelect?.addEventListener("change", syncTournamentSetupOptions);
+btnStartTournament?.addEventListener("click", startTournamentFromDraw);
+btnAdvanceToKnockout?.addEventListener("click", advanceGroupsToKnockout);
+btnCopyTournament?.addEventListener("click", copyTournamentToClipboard);
+btnResetTournament?.addEventListener("click", () => {
+  state.tournament = null;
+  saveState();
+  renderTournament();
 });
 
 // Eventos del Modal <dialog>
@@ -776,3 +1666,9 @@ if (!("closedBy" in HTMLDialogElement.prototype)) {
 loadState();
 syncControlsWithState();
 renderPlayers();
+if (state.lastDraw) {
+  renderDrawResults();
+}
+if (state.tournament) {
+  renderTournament();
+}
