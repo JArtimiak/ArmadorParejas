@@ -100,7 +100,15 @@ const state = {
   noRepeatClubs: true,
   presets: structuredClone(DEFAULT_PRESETS),
   lastDraw: null, // { teams: [{ id, name, members, club }], bench: [string] }
-  tournament: null // { format, groupCount, qualifiersCount, teams, groups, bracket }
+  tournament: null, // { format, groupCount, qualifiersCount, teams, groups, bracket }
+  truco: {
+    target: 30, // 30 o 15
+    nameA: "Nosotros",
+    nameB: "Ellos",
+    scoreA: 0,
+    scoreB: 0,
+    linkedMatch: null // null | { type: 'group', groupId, matchId } | { type: 'bracket', matchId }
+  }
 };
 
 // Referencias del DOM
@@ -163,7 +171,7 @@ const groupsWrapper = document.getElementById("groupsWrapper");
 const knockoutStageContainer = document.getElementById("knockoutStageContainer");
 const bracketWrapper = document.getElementById("bracketWrapper");
 
-// Referencias del Modal Dialog
+// Referencias del Modal Dialog de Clubes
 const clubsDialog = document.getElementById("clubsDialog");
 const dialogPresetName = document.getElementById("dialogPresetName");
 const btnCloseDialog = document.getElementById("btnCloseDialog");
@@ -172,6 +180,41 @@ const addClubForm = document.getElementById("addClubForm");
 const clubInput = document.getElementById("clubInput");
 const btnResetPreset = document.getElementById("btnResetPreset");
 const clubsModalList = document.getElementById("clubsModalList");
+
+// Referencias del Modal Anotador de Truco
+const btnOpenTrucoGlobal = document.getElementById("btnOpenTrucoGlobal");
+const trucoDialog = document.getElementById("trucoDialog");
+const trucoConfettiContainer = document.getElementById("trucoConfettiContainer");
+const btnTrucoTarget30 = document.getElementById("btnTrucoTarget30");
+const btnTrucoTarget15 = document.getElementById("btnTrucoTarget15");
+const btnResetTruco = document.getElementById("btnResetTruco");
+const btnCloseTruco = document.getElementById("btnCloseTruco");
+const btnDoneTruco = document.getElementById("btnDoneTruco");
+const btnSaveTrucoToMatch = document.getElementById("btnSaveTrucoToMatch");
+const trucoWinnerBanner = document.getElementById("trucoWinnerBanner");
+const trucoWinnerName = document.getElementById("trucoWinnerName");
+const trucoWinnerSub = document.getElementById("trucoWinnerSub");
+const btnTrucoRematch = document.getElementById("btnTrucoRematch");
+const btnTrucoShare = document.getElementById("btnTrucoShare");
+const btnTrucoUndo = document.getElementById("btnTrucoUndo");
+const trucoTeamCardA = document.getElementById("trucoTeamCardA");
+const trucoTeamCardB = document.getElementById("trucoTeamCardB");
+const trucoNameA = document.getElementById("trucoNameA");
+const trucoNameB = document.getElementById("trucoNameB");
+const trucoScoreA = document.getElementById("trucoScoreA");
+const trucoScoreB = document.getElementById("trucoScoreB");
+const trucoStatusA = document.getElementById("trucoStatusA");
+const trucoStatusB = document.getElementById("trucoStatusB");
+const btnTrucoMinusA = document.getElementById("btnTrucoMinusA");
+const btnTrucoPlusA = document.getElementById("btnTrucoPlusA");
+const btnTrucoMinusB = document.getElementById("btnTrucoMinusB");
+const btnTrucoPlusB = document.getElementById("btnTrucoPlusB");
+const trucoTopHalfTitle = document.getElementById("trucoTopHalfTitle");
+const trucoBuenasSection = document.getElementById("trucoBuenasSection");
+const trucoMalasA = document.getElementById("trucoMalasA");
+const trucoMalasB = document.getElementById("trucoMalasB");
+const trucoBuenasA = document.getElementById("trucoBuenasA");
+const trucoBuenasB = document.getElementById("trucoBuenasB");
 
 // Algoritmo Fisher-Yates para mezcla aleatoria sin sesgo
 function shuffleArray(array) {
@@ -194,7 +237,8 @@ function saveState() {
       noRepeatClubs: state.noRepeatClubs,
       presets: state.presets,
       lastDraw: state.lastDraw,
-      tournament: state.tournament
+      tournament: state.tournament,
+      truco: state.truco
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (err) {
@@ -226,6 +270,12 @@ function loadState() {
     }
     if (parsed.tournament && typeof parsed.tournament === "object") {
       state.tournament = parsed.tournament;
+    }
+    if (parsed.truco && typeof parsed.truco === "object") {
+      state.truco = {
+        ...state.truco,
+        ...parsed.truco
+      };
     }
   } catch (err) {
     console.warn("No se pudo leer el estado guardado:", err);
@@ -495,7 +545,25 @@ function renderDrawResults() {
 
     const header = document.createElement("div");
     header.className = "match-card-header";
-    header.innerHTML = `<span>⚽ Partido ${m + 1}</span><span>Formato ${state.teamSize} vs ${state.teamSize}</span>`;
+
+    const leftLabel = document.createElement("span");
+    leftLabel.textContent = `⚽ Partido ${m + 1} (${state.teamSize} vs ${state.teamSize})`;
+
+    const trucoBtn = document.createElement("button");
+    trucoBtn.type = "button";
+    trucoBtn.className = "btn-open-truco-inline";
+    trucoBtn.title = "Abrir anotador de Truco con estas dos parejas";
+    trucoBtn.textContent = "🃏 Anotar Truco";
+    trucoBtn.addEventListener("click", () => {
+      openTrucoScoreboard({
+        nameA: teamA.members.join(" + "),
+        nameB: teamB.members.join(" + "),
+        resetScores: true,
+        linkedMatch: null
+      });
+    });
+
+    header.append(leftLabel, trucoBtn);
 
     const grid = document.createElement("div");
     grid.className = "match-grid";
@@ -1282,7 +1350,22 @@ function renderTournament() {
           inputHome.addEventListener("input", onScoreInput);
           inputAway.addEventListener("input", onScoreInput);
 
-          scoreBox.append(inputHome, sep, inputAway);
+          const trucoMatchBtn = document.createElement("button");
+          trucoMatchBtn.type = "button";
+          trucoMatchBtn.className = "btn-open-truco-inline";
+          trucoMatchBtn.title = "Anotar este partido con el tanteador de Truco";
+          trucoMatchBtn.textContent = "🃏";
+          trucoMatchBtn.addEventListener("click", () => {
+            openTrucoScoreboard({
+              nameA: getTeamDisplayName(homeTeam),
+              nameB: getTeamDisplayName(awayTeam),
+              scoreA: match.homeScore ?? 0,
+              scoreB: match.awayScore ?? 0,
+              linkedMatch: { type: "group", groupId: group.id, matchId: match.id }
+            });
+          });
+
+          scoreBox.append(inputHome, sep, inputAway, trucoMatchBtn);
 
           const awayDiv = document.createElement("div");
           awayDiv.className = "fixture-team away";
@@ -1348,15 +1431,38 @@ function renderBracketColumns(bracket, teamsMap) {
       const card = document.createElement("div");
       card.className = "bracket-match-card";
 
-      const label = document.createElement("div");
-      label.className = "bracket-match-label";
-      label.innerHTML = `<span>Llave ${idx + 1}</span><span>${
-        match.isBye ? "Pase directo (BYE)" : ""
-      }</span>`;
-      card.appendChild(label);
-
       const teamA = teamsMap.get(match.teamAId);
       const teamB = teamsMap.get(match.teamBId);
+
+      const label = document.createElement("div");
+      label.className = "bracket-match-label";
+      const leftSpan = document.createElement("span");
+      leftSpan.textContent = `Llave ${idx + 1}`;
+      label.appendChild(leftSpan);
+
+      if (match.isBye) {
+        const byeSpan = document.createElement("span");
+        byeSpan.textContent = "Pase directo (BYE)";
+        label.appendChild(byeSpan);
+      } else if (teamA && teamB) {
+        const trucoKoBtn = document.createElement("button");
+        trucoKoBtn.type = "button";
+        trucoKoBtn.className = "btn-open-truco-inline";
+        trucoKoBtn.title = "Anotar esta llave con el tanteador de Truco";
+        trucoKoBtn.textContent = "🃏 Anotar";
+        trucoKoBtn.addEventListener("click", () => {
+          openTrucoScoreboard({
+            nameA: getTeamDisplayName(teamA),
+            nameB: getTeamDisplayName(teamB),
+            scoreA: match.scoreA ?? 0,
+            scoreB: match.scoreB ?? 0,
+            linkedMatch: { type: "bracket", matchId: match.id }
+          });
+        });
+        label.appendChild(trucoKoBtn);
+      }
+
+      card.appendChild(label);
 
       card.appendChild(
         createBracketTeamRow(match, "A", teamA, bracket, teamsMap)
@@ -1623,7 +1729,239 @@ btnResetTournament?.addEventListener("click", () => {
   renderTournament();
 });
 
-// Eventos del Modal <dialog>
+// ==========================================================================
+// Anotador de Truco (30 o 15 puntos con Cajoncitos de 5 Fósforos)
+// ==========================================================================
+
+function createMatchstickBoxSVG(pointsInBox) {
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 60 60");
+  svg.setAttribute("class", "truco-box-svg");
+  svg.setAttribute("aria-hidden", "true");
+
+  // Guía punteada del cajoncito
+  const guide = document.createElementNS(svgNS, "rect");
+  guide.setAttribute("x", "10");
+  guide.setAttribute("y", "10");
+  guide.setAttribute("width", "40");
+  guide.setAttribute("height", "40");
+  guide.setAttribute("rx", "4");
+  guide.setAttribute("class", "truco-box-guide");
+  svg.appendChild(guide);
+
+  // Definición de los 5 fósforos del cajoncito:
+  // 1: Izquierda vertical, 2: Arriba horizontal, 3: Derecha vertical, 4: Abajo horizontal, 5: Diagonal
+  const sticks = [
+    { x1: 10, y1: 48, x2: 10, y2: 14, hx: 10, hy: 12 },
+    { x1: 12, y1: 10, x2: 46, y2: 10, hx: 48, hy: 10 },
+    { x1: 50, y1: 12, x2: 50, y2: 46, hx: 50, hy: 48 },
+    { x1: 48, y1: 50, x2: 14, y2: 50, hx: 12, hy: 50 },
+    { x1: 15, y1: 45, x2: 44, y2: 16, hx: 45, hy: 15 }
+  ];
+
+  sticks.forEach((s, idx) => {
+    const g = document.createElementNS(svgNS, "g");
+    const isLit = idx < pointsInBox;
+    g.setAttribute("class", `matchstick${isLit ? " lit" : ""}`);
+
+    const wood = document.createElementNS(svgNS, "line");
+    wood.setAttribute("x1", String(s.x1));
+    wood.setAttribute("y1", String(s.y1));
+    wood.setAttribute("x2", String(s.x2));
+    wood.setAttribute("y2", String(s.y2));
+    wood.setAttribute("class", "matchstick-wood");
+
+    const head = document.createElementNS(svgNS, "circle");
+    head.setAttribute("cx", String(s.hx));
+    head.setAttribute("cy", String(s.hy));
+    head.setAttribute("r", "3.4");
+    head.setAttribute("class", "matchstick-head");
+
+    g.append(wood, head);
+    svg.appendChild(g);
+  });
+
+  return svg;
+}
+
+function formatTrucoStatus(score, target) {
+  if (target === 15) {
+    if (score >= 15) return "¡15 Puntos!";
+    return `${score} de 15 pts`;
+  }
+  if (score >= 30) return "¡30 Puntos!";
+  if (score <= 15) {
+    return `${score} ${score === 1 ? "Mala" : "Malas"}`;
+  }
+  const buenas = score - 15;
+  return `${buenas} ${buenas === 1 ? "Buena" : "Buenas"}`;
+}
+
+function renderBoxesColumn(container, totalPointsInSection, boxCount) {
+  container.innerHTML = "";
+  for (let b = 0; b < boxCount; b++) {
+    const remaining = totalPointsInSection - b * 5;
+    const pts = Math.max(0, Math.min(5, remaining));
+    container.appendChild(createMatchstickBoxSVG(pts));
+  }
+}
+
+function launchTrucoConfetti() {
+  if (!trucoConfettiContainer) return;
+  trucoConfettiContainer.innerHTML = "";
+  const colors = ["#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#a855f7", "#fde047"];
+
+  for (let i = 0; i < 36; i++) {
+    const piece = document.createElement("span");
+    piece.className = "confetti-piece";
+    piece.style.insetInlineStart = `${Math.random() * 96}%`;
+    piece.style.backgroundColor = colors[i % colors.length];
+    piece.style.animationDelay = `${Math.random() * 0.45}s`;
+    piece.style.animationDuration = `${1.6 + Math.random() * 0.9}s`;
+    trucoConfettiContainer.appendChild(piece);
+  }
+}
+
+function renderTrucoScoreboard() {
+  if (!trucoDialog) return;
+  const { target, nameA, nameB, scoreA, scoreB, linkedMatch } = state.truco;
+
+  btnTrucoTarget30.classList.toggle("active", target === 30);
+  btnTrucoTarget30.setAttribute("aria-pressed", String(target === 30));
+  btnTrucoTarget15.classList.toggle("active", target === 15);
+  btnTrucoTarget15.setAttribute("aria-pressed", String(target === 15));
+
+  if (document.activeElement !== trucoNameA) trucoNameA.value = nameA;
+  if (document.activeElement !== trucoNameB) trucoNameB.value = nameB;
+
+  trucoScoreA.textContent = scoreA;
+  trucoScoreB.textContent = scoreB;
+  trucoStatusA.textContent = formatTrucoStatus(scoreA, target);
+  trucoStatusB.textContent = formatTrucoStatus(scoreB, target);
+
+  if (target === 30) {
+    trucoTopHalfTitle.textContent = "MALAS (Primeros 15)";
+    trucoBuenasSection.hidden = false;
+
+    const malasA = Math.min(15, scoreA);
+    const buenasA = Math.max(0, scoreA - 15);
+    const malasB = Math.min(15, scoreB);
+    const buenasB = Math.max(0, scoreB - 15);
+
+    renderBoxesColumn(trucoMalasA, malasA, 3);
+    renderBoxesColumn(trucoMalasB, malasB, 3);
+    renderBoxesColumn(trucoBuenasA, buenasA, 3);
+    renderBoxesColumn(trucoBuenasB, buenasB, 3);
+  } else {
+    trucoTopHalfTitle.textContent = "PARTIDO A 15 PUNTOS (3 Cajoncitos de 5)";
+    trucoBuenasSection.hidden = true;
+
+    renderBoxesColumn(trucoMalasA, Math.min(15, scoreA), 3);
+    renderBoxesColumn(trucoMalasB, Math.min(15, scoreB), 3);
+  }
+
+  const aWon = scoreA >= target;
+  const bWon = scoreB >= target;
+
+  trucoTeamCardA?.classList.toggle("winner-card", aWon);
+  trucoTeamCardB?.classList.toggle("winner-card", bWon);
+
+  // Verificar si alguien llegó al puntaje objetivo
+  if (aWon || bWon) {
+    const winName = aWon ? nameA : nameB;
+    const loseName = aWon ? nameB : nameA;
+    const winScore = aWon ? scoreA : scoreB;
+    const loseScore = aWon ? scoreB : scoreA;
+
+    trucoWinnerBanner.hidden = false;
+    trucoWinnerName.textContent = `¡Ganó ${winName}!`;
+    if (trucoWinnerSub) {
+      trucoWinnerSub.textContent = `Resultado final: ${winScore} a ${loseScore} contra ${loseName}`;
+    }
+  } else {
+    trucoWinnerBanner.hidden = true;
+  }
+
+  btnSaveTrucoToMatch.hidden = !linkedMatch;
+}
+
+function adjustTrucoScore(side, delta) {
+  const key = side === "A" ? "scoreA" : "scoreB";
+  const max = state.truco.target;
+  const prev = state.truco[key];
+  const next = Math.max(0, Math.min(max, prev + delta));
+  if (next === prev) return;
+
+  state.truco[key] = next;
+  state.truco.lastWinnerSide = next >= max ? side : null;
+  saveState();
+  renderTrucoScoreboard();
+
+  if (prev < max && next >= max) {
+    launchTrucoConfetti();
+  }
+}
+
+function setTrucoTarget(newTarget) {
+  state.truco.target = newTarget;
+  state.truco.scoreA = Math.min(state.truco.scoreA, newTarget);
+  state.truco.scoreB = Math.min(state.truco.scoreB, newTarget);
+  saveState();
+  renderTrucoScoreboard();
+}
+
+function openTrucoScoreboard(options = {}) {
+  if (options.nameA !== undefined) state.truco.nameA = options.nameA;
+  if (options.nameB !== undefined) state.truco.nameB = options.nameB;
+  if (options.resetScores) {
+    state.truco.scoreA = 0;
+    state.truco.scoreB = 0;
+  }
+  if (options.scoreA !== undefined) state.truco.scoreA = options.scoreA;
+  if (options.scoreB !== undefined) state.truco.scoreB = options.scoreB;
+  if (options.linkedMatch !== undefined) {
+    state.truco.linkedMatch = options.linkedMatch;
+  }
+
+  saveState();
+  renderTrucoScoreboard();
+  trucoDialog.showModal();
+}
+
+function saveTrucoToLinkedMatch() {
+  const link = state.truco.linkedMatch;
+  if (!link || !state.tournament) return;
+
+  if (link.type === "group" && state.tournament.groups) {
+    const group = state.tournament.groups.find((g) => g.id === link.groupId);
+    if (group) {
+      group.rounds.forEach((r) => {
+        const match = r.matches.find((m) => m.id === link.matchId);
+        if (match) {
+          match.homeScore = state.truco.scoreA;
+          match.awayScore = state.truco.scoreB;
+        }
+      });
+    }
+  } else if (link.type === "bracket" && state.tournament.bracket) {
+    state.tournament.bracket.rounds.forEach((r) => {
+      const match = r.matches.find((m) => m.id === link.matchId);
+      if (match) {
+        match.scoreA = state.truco.scoreA;
+        match.scoreB = state.truco.scoreB;
+        match.manualWinnerId = null;
+      }
+    });
+    propagateBracketWinners(state.tournament.bracket);
+  }
+
+  saveState();
+  renderTournament();
+  trucoDialog.close();
+}
+
+// Eventos del Modal de Clubes <dialog>
 btnOpenClubsDialog.addEventListener("click", () => {
   renderClubsModal();
   clubsDialog.showModal();
@@ -1646,19 +1984,104 @@ btnResetPreset.addEventListener("click", () => {
   renderClubsModal();
 });
 
+// Eventos del Anotador de Truco
+btnOpenTrucoGlobal?.addEventListener("click", () => {
+  openTrucoScoreboard({ linkedMatch: null });
+});
+
+btnCloseTruco?.addEventListener("click", () => trucoDialog.close());
+btnDoneTruco?.addEventListener("click", () => trucoDialog.close());
+
+btnTrucoTarget30?.addEventListener("click", () => setTrucoTarget(30));
+btnTrucoTarget15?.addEventListener("click", () => setTrucoTarget(15));
+
+btnResetTruco?.addEventListener("click", () => {
+  state.truco.scoreA = 0;
+  state.truco.scoreB = 0;
+  saveState();
+  renderTrucoScoreboard();
+});
+
+btnTrucoMinusA?.addEventListener("click", () => adjustTrucoScore("A", -1));
+btnTrucoPlusA?.addEventListener("click", () => adjustTrucoScore("A", 1));
+btnTrucoMinusB?.addEventListener("click", () => adjustTrucoScore("B", -1));
+btnTrucoPlusB?.addEventListener("click", () => adjustTrucoScore("B", 1));
+
+// Tocar directamente los cajoncitos del pizarrón también suma +1 a ese equipo
+trucoMalasA?.addEventListener("click", () => adjustTrucoScore("A", 1));
+trucoBuenasA?.addEventListener("click", () => adjustTrucoScore("A", 1));
+trucoMalasB?.addEventListener("click", () => adjustTrucoScore("B", 1));
+trucoBuenasB?.addEventListener("click", () => adjustTrucoScore("B", 1));
+
+// Acciones interactivas del panel de Ganador
+btnTrucoRematch?.addEventListener("click", () => {
+  state.truco.scoreA = 0;
+  state.truco.scoreB = 0;
+  if (trucoConfettiContainer) trucoConfettiContainer.innerHTML = "";
+  saveState();
+  renderTrucoScoreboard();
+});
+
+btnTrucoUndo?.addEventListener("click", () => {
+  const { scoreA, scoreB, target } = state.truco;
+  if (scoreA >= target) {
+    adjustTrucoScore("A", -1);
+  } else if (scoreB >= target) {
+    adjustTrucoScore("B", -1);
+  }
+  if (trucoConfettiContainer) trucoConfettiContainer.innerHTML = "";
+});
+
+btnTrucoShare?.addEventListener("click", async () => {
+  const { nameA, nameB, scoreA, scoreB, target } = state.truco;
+  const aWon = scoreA >= target;
+  const winName = aWon ? nameA : nameB;
+  const loseName = aWon ? nameB : nameA;
+  const winScore = aWon ? scoreA : scoreB;
+  const loseScore = aWon ? scoreB : scoreA;
+
+  const text = `🃏 *¡PARTIDO DE TRUCO (A ${target} PTS)!* 🏆\n👑 *Ganó ${winName}* (${winScore} a ${loseScore} vs *${loseName}*)`;
+  try {
+    await navigator.clipboard.writeText(text);
+    const original = btnTrucoShare.textContent;
+    btnTrucoShare.textContent = "✅ ¡Copiado!";
+    setTimeout(() => {
+      btnTrucoShare.textContent = original;
+    }, 1800);
+  } catch {
+    // Fallback silencioso
+  }
+});
+
+trucoNameA?.addEventListener("input", () => {
+  state.truco.nameA = trucoNameA.value.trim() || "Nosotros";
+  saveState();
+  renderTrucoScoreboard();
+});
+
+trucoNameB?.addEventListener("input", () => {
+  state.truco.nameB = trucoNameB.value.trim() || "Ellos";
+  saveState();
+  renderTrucoScoreboard();
+});
+
+btnSaveTrucoToMatch?.addEventListener("click", saveTrucoToLinkedMatch);
+
 // Fallback para navegadores que aún no soportan closedby="any" en <dialog>
 if (!("closedBy" in HTMLDialogElement.prototype)) {
-  clubsDialog.addEventListener("click", (event) => {
-    if (event.target !== clubsDialog) return;
-    const rect = clubsDialog.getBoundingClientRect();
-    const isDialogContent =
-      rect.top <= event.clientY &&
-      event.clientY <= rect.top + rect.height &&
-      rect.left <= event.clientX &&
-      event.clientX <= rect.left + rect.width;
+  [clubsDialog, trucoDialog].forEach((dlg) => {
+    dlg?.addEventListener("click", (event) => {
+      if (event.target !== dlg) return;
+      const rect = dlg.getBoundingClientRect();
+      const isDialogContent =
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width;
 
-    if (isDialogContent) return;
-    clubsDialog.close();
+      if (isDialogContent) return;
+      dlg.close();
+    });
   });
 }
 

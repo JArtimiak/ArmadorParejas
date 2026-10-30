@@ -18,19 +18,27 @@
         </div>
       </div>
 
-      <!-- Selector de Formato (1vs1, 2vs2, 3vs3) -->
-      <div class="mode-selector" role="group" aria-label="Formato de juego">
-        <button type="button" class="mode-btn" data-size="1" aria-pressed="false">
-          <span class="mode-badge">1 vs 1</span>
-          <span class="mode-desc">Mano a mano</span>
-        </button>
-        <button type="button" class="mode-btn active" data-size="2" aria-pressed="true">
-          <span class="mode-badge">2 vs 2</span>
-          <span class="mode-desc">Parejas</span>
-        </button>
-        <button type="button" class="mode-btn" data-size="3" aria-pressed="false">
-          <span class="mode-badge">3 vs 3</span>
-          <span class="mode-desc">Tríos / Picado</span>
+      <div class="header-right-controls">
+        <!-- Selector de Formato (1vs1, 2vs2, 3vs3) -->
+        <div class="mode-selector" role="group" aria-label="Formato de juego">
+          <button type="button" class="mode-btn" data-size="1" aria-pressed="false">
+            <span class="mode-badge">1 vs 1</span>
+            <span class="mode-desc">Mano a mano</span>
+          </button>
+          <button type="button" class="mode-btn active" data-size="2" aria-pressed="true">
+            <span class="mode-badge">2 vs 2</span>
+            <span class="mode-desc">Parejas</span>
+          </button>
+          <button type="button" class="mode-btn" data-size="3" aria-pressed="false">
+            <span class="mode-badge">3 vs 3</span>
+            <span class="mode-desc">Tríos / Picado</span>
+          </button>
+        </div>
+
+        <!-- Botón de Anotador de Truco siempre visible -->
+        <button type="button" id="btnOpenTrucoGlobal" class="btn-truco-header" title="Abrir anotador de Truco (15 o 30 puntos)">
+          <span aria-hidden="true">🃏</span>
+          <span>Anotador Truco</span>
         </button>
       </div>
     </header>
@@ -319,6 +327,136 @@
 
     <div class="dialog-footer">
       <button type="button" id="btnConfirmDialog" class="btn-primary">Listo</button>
+    </div>
+  </dialog>
+
+  <!-- Modal Nativo para el Anotador de Truco (30 o 15 puntos con fósforos) -->
+  <dialog id="trucoDialog" closedby="any" aria-labelledby="trucoDialogTitle" class="custom-dialog truco-dialog">
+    <div id="trucoConfettiContainer" class="truco-confetti-container" aria-hidden="true"></div>
+
+    <div class="dialog-header truco-dialog-header">
+      <div>
+        <h2 id="trucoDialogTitle">🃏 Anotador de Truco</h2>
+      </div>
+
+      <div class="truco-header-actions">
+        <div class="truco-target-toggle" role="group" aria-label="Puntos del partido">
+          <button type="button" id="btnTrucoTarget30" class="truco-target-btn active" data-target="30" aria-pressed="true">
+            A 30 pts
+          </button>
+          <button type="button" id="btnTrucoTarget15" class="truco-target-btn" data-target="15" aria-pressed="false">
+            A 15 pts
+          </button>
+        </div>
+        <button type="button" id="btnResetTruco" class="btn-ghost btn-sm danger-text" title="Poner tanteador en 0 - 0">
+          🔄 En cero
+        </button>
+        <button type="button" id="btnCloseTruco" class="btn-icon" aria-label="Cerrar anotador">✕</button>
+      </div>
+    </div>
+
+    <div class="dialog-body truco-dialog-body">
+      <!-- Panel interactivo de festejo cuando un equipo llega a 30 (o 15) -->
+      <div id="trucoWinnerBanner" class="truco-winner-banner" hidden>
+        <div class="truco-winner-top">
+          <span class="truco-winner-trophy" aria-hidden="true">🏆</span>
+          <div class="truco-winner-texts">
+            <span class="truco-winner-kicker">¡PARTIDO LIQUIDADO!</span>
+            <h3 id="trucoWinnerName">-</h3>
+            <p id="trucoWinnerSub">Resultado final: 30 a 0</p>
+          </div>
+        </div>
+        <div class="truco-winner-actions">
+          <button type="button" id="btnTrucoRematch" class="btn-primary btn-sm">
+            🔁 Jugar Revancha
+          </button>
+          <button type="button" id="btnTrucoShare" class="btn-secondary btn-sm">
+            📲 Copiar Victoria
+          </button>
+          <button type="button" id="btnTrucoUndo" class="btn-ghost btn-sm" title="Restar el último punto por si fue sin querer">
+            ↩️ Deshacer punto
+          </button>
+        </div>
+      </div>
+
+      <!-- Cabecera de Equipos y Puntaje Numérico + Botones -1 / +1 -->
+      <div class="truco-teams-bar">
+        <!-- Equipo A (Nosotros) -->
+        <div id="trucoTeamCardA" class="truco-team-header">
+          <input
+            type="text"
+            id="trucoNameA"
+            class="truco-team-input"
+            value="Nosotros"
+            aria-label="Nombre del Equipo 1"
+          />
+          <div class="truco-score-row">
+            <span id="trucoScoreA" class="truco-big-score">0</span>
+            <span id="trucoStatusA" class="truco-sub-status">0 Malas</span>
+          </div>
+          <div class="truco-step-controls">
+            <button type="button" id="btnTrucoMinusA" class="btn-truco-step minus" aria-label="Restar 1 punto a Equipo 1">
+              −1
+            </button>
+            <button type="button" id="btnTrucoPlusA" class="btn-truco-step plus" aria-label="Sumar 1 punto a Equipo 1">
+              +1
+            </button>
+          </div>
+        </div>
+
+        <!-- Equipo B (Ellos) -->
+        <div id="trucoTeamCardB" class="truco-team-header">
+          <input
+            type="text"
+            id="trucoNameB"
+            class="truco-team-input"
+            value="Ellos"
+            aria-label="Nombre del Equipo 2"
+          />
+          <div class="truco-score-row">
+            <span id="trucoScoreB" class="truco-big-score">0</span>
+            <span id="trucoStatusB" class="truco-sub-status">0 Malas</span>
+          </div>
+          <div class="truco-step-controls">
+            <button type="button" id="btnTrucoMinusB" class="btn-truco-step minus" aria-label="Restar 1 punto a Equipo 2">
+              −1
+            </button>
+            <button type="button" id="btnTrucoPlusB" class="btn-truco-step plus" aria-label="Sumar 1 punto a Equipo 2">
+              +1
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pizarrón de Fósforos dividido a la mitad (Malas arriba / Buenas abajo) -->
+      <div class="truco-chalkboard">
+        <!-- Mitad Superior: MALAS (0 a 15) -->
+        <div class="truco-half-label">
+          <span id="trucoTopHalfTitle">MALAS (Primeros 15)</span>
+        </div>
+        <div class="truco-half-grid">
+          <div id="trucoMalasA" class="truco-column-boxes" title="Tocá para sumar +1 a Equipo 1" aria-label="Fósforos en malas Equipo 1"></div>
+          <div id="trucoMalasB" class="truco-column-boxes" title="Tocá para sumar +1 a Equipo 2" aria-label="Fósforos en malas Equipo 2"></div>
+        </div>
+
+        <!-- Línea divisoria a la mitad + Mitad Inferior: BUENAS (16 a 30) -->
+        <div id="trucoBuenasSection" class="truco-buenas-section">
+          <div class="truco-mid-divider">
+            <span>BUENAS (15 PTS)</span>
+          </div>
+          <div class="truco-half-grid">
+            <div id="trucoBuenasA" class="truco-column-boxes" title="Tocá para sumar +1 a Equipo 1" aria-label="Fósforos en buenas Equipo 1"></div>
+            <div id="trucoBuenasB" class="truco-column-boxes" title="Tocá para sumar +1 a Equipo 2" aria-label="Fósforos en buenas Equipo 2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-footer truco-dialog-footer">
+      <button type="button" id="btnSaveTrucoToMatch" class="btn-primary" hidden>
+        ✅ Guardar resultado en el Partido
+      </button>
+      <button type="button" id="btnDoneTruco" class="btn-secondary">Cerrar</button>
     </div>
   </dialog>
 

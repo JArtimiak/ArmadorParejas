@@ -46,11 +46,15 @@ Toda la aplicación gira en torno a un único objeto de estado sincronizado en `
    - **Fixture Round-Robin (`generateRoundRobinRounds`):** Implementa el *Circle Method* (algoritmo de Berger) para generar las fechas todos contra todos de cada zona, asignando automáticamente fecha libre (`byeTeamId`) si el grupo tiene cantidad impar de equipos.
    - **Tabla de Posiciones en vivo (`computeGroupStandings`):** Calcula `PJ`, `G`, `E`, `P`, `GF`, `GC`, `DG` y `PTS` (3 pts por victoria, 1 pt por empate) y ordena por `PTS` → `DG` → `GF` → orden alfabético.
    - **Cuadro Eliminatorio Dinámico (`createKnockoutBracket` y `propagateBracketWinners`):** Calcula la potencia de 2 inmediata superior (`bracketSize` = 2, 4, 8 o 16) para rotular automáticamente **Octavos de Final**, **Cuartos de Final**, **Semifinales** y **Final**. Asigna pases directos (`isBye: true`) a los mejores preclasificados cuando el número de equipos no es potencia de 2 y propaga los ganadores ronda a ronda (por resultado numérico o selección directa con `✓ Ganó`) hasta coronar al campeón.
+5. **Anotador de Truco (`state.truco` y `createMatchstickBoxSVG`):**
+   - Accesible globalmente desde el botón fijo del encabezado (`#btnOpenTrucoGlobal`) o vinculado a un partido sorteado / partido de torneo (`linkedMatch`).
+   - **Diseño sin scroll:** Soporta partidas a **30 puntos** (divididas a la mitad en 15 *Malas* arriba y 15 *Buenas* abajo) o a **15 puntos**, ubicando los 3 cajoncitos de cada mitad en una fila horizontal compacta (`.truco-column-boxes`) para que todo el tablero y los controles `-1` / `+1` entren en una única pantalla sin desplazamiento vertical.
+   - **Interactividad del Ganador (`launchTrucoConfetti`):** Al alcanzar el puntaje objetivo, lanza animación de confeti, ilumina la tarjeta ganadora (`.winner-card`) y despliega acciones directas de **Revancha (`0 - 0`)**, **Copiar Victoria para WhatsApp** y **Deshacer último punto**.
 
 ---
 
 ## 5. Estándares Web Modernos y Arquitectura Responsive
-- **`<dialog closedby="any">` adaptable a teclados móviles:** El gestor de clubes utiliza el elemento nativo `<dialog>` con apertura modal (`showModal()`), dimensiones acotadas a `max-block-size: min(88dvh, 660px)` con cuerpo interno desplazable (`.dialog-body`) y listener de fallback por coordenadas (`getBoundingClientRect()`) para navegadores sin soporte nativo de `closedBy`.
+- **`<dialog closedby="any">` adaptable a teclados móviles:** Tanto el gestor de clubes como el anotador de Truco utilizan el elemento nativo `<dialog>` con apertura modal (`showModal()`), dimensiones acotadas con cuerpo interno desplazable (`.dialog-body`) y listener de fallback por coordenadas (`getBoundingClientRect()`) para navegadores sin soporte nativo de `closedBy`.
 - **Tablas de Posiciones Responsivas (`responsive-table`):** Las tablas de grupos usan `<div tabindex="0" role="region" aria-labelledby="..." class="table-wrapper">` con `container-type: inline-size`, encabezados `position: sticky` tanto en `thead` como en `tbody th`, y una regla `@container (width < 440px)` que transforma las filas en tarjetas apiladas inyectando los nombres de columna con `td:nth-child(n)::before` y variables CSS (`--label-*`).
 - **Container Queries (`container-type: inline-size` + `@container`):** Los paneles (`.panel`) y las tarjetas de partido (`.match-card`) miden su propio ancho disponible en lugar de depender únicamente del viewport, con fallback progresivo mediante `@supports (container-type: inline-size)` para `.match-grid` y `.stats-bar`.
 - **Unidades Dinámicas (`dvh` / `dvw`), `safe-area-inset` y Tipografía Fluida (`clamp()`):** Uso de `100dvh` para evitar saltos por la barra de direcciones del navegador móvil, `env(safe-area-inset-*)` para pantallas con *notch*, y `clamp()` para escalar textos y espaciados desde móviles pequeños (`320px`) hasta Smart TVs.
@@ -60,5 +64,4 @@ Toda la aplicación gira en torno a un único objeto de estado sincronizado en `
 ---
 
 ## 6. Posibles Extensiones Futuras
-- **Tanteador de Truco de 30 puntos integrado:** Modal rápido para sumar porotos ("Buenas" y "Malas") dentro de un partido del torneo.
 - **Historial de Campeones / Ranking de Amigos:** Guardar estadísticas históricas de quién ganó más torneos en el grupo de amigos.

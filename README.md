@@ -16,6 +16,12 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
   - **Editor de clubes integrado:** Podés agregar o quitar clubes de cada lista o restaurar los valores por defecto.
   - **Re-sorteo independiente:** Botón para **volver a sortear todos los clubes** sin desarmar las parejas ya armadas, o botón `🔄` en cada tarjeta para **cambiar el club de un solo equipo**.
   - Opción para **evitar clubes repetidos** en el mismo sorteo.
+- **🃏 Anotador de Truco Integrado (30 o 15 puntos con Fósforos, Sin Scroll):**
+  - **Botón siempre visible arriba (`🃏 Anotador Truco`):** Permite abrir el tanteador en cualquier momento para anotar un partido (*Nosotros vs Ellos*).
+  - **Cajoncitos de 5 Fósforos en vista única:** Los 3 cajoncitos de **Malas (primeros 15)** y los 3 cajoncitos de **Buenas (segundos 15)** se disponen en fila horizontal para que todo el partido a 30 puntos y los botones `-1` / `+1` entren en pantalla sin necesidad de scrollear.
+  - **Suma de a 1 (`+1` / `-1` o toque directo):** Podés usar los botones `-1` / `+1` o tocar directamente los cajoncitos del pizarrón de cada equipo para sumar.
+  - **Festejo Interactivo del Ganador:** Al llegar a 30 (o 15) puntos se lanza una lluvia de confeti, se ilumina la tarjeta del ganador y se habilitan acciones rápidas para **🔁 Jugar Revancha**, **📲 Copiar Victoria para WhatsApp** o **↩️ Deshacer punto**.
+  - **Integrado con Sorteos y Torneos:** Podés abrirlo desde cualquier tarjeta de partido sorteado o desde un partido del torneo para volcar el resultado directamente en la tabla o llave eliminatoria.
 - **🏆 Seguimiento Completo de Torneo (Fase de Grupos y/o Eliminatorias):**
   - Una vez conformadas las parejas/equipos (y sus clubes), podés presionar **✅ Confirmar Equipos y Generar Torneo** eligiendo entre 3 modalidades:
     1. **📊 Solo Fase de Grupos (Liga):** Fixture por fechas todos contra todos (1, 2 o 4 zonas) con **Tabla de Posiciones en vivo** (`PJ`, `G`, `E`, `P`, `GF`, `GC`, `DG`, `PTS`).
