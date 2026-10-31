@@ -231,3 +231,59 @@ function addClubsToPreset(rawInput) {
   saveState();
   renderClubsModal();
 }
+
+function setTeamManualClub(teamId, newClubName) {
+  if (!state.lastDraw || !state.lastDraw.teams) return;
+  const team = state.lastDraw.teams.find(t => t.id === teamId);
+  if (team) {
+    team.club = newClubName;
+    saveState();
+    renderDrawResults();
+    if (state.tournament) renderTournament();
+  }
+}
+
+function swapDrawPlayers(sourceMemberId, targetMemberId) {
+  if (!state.lastDraw || !state.lastDraw.teams) return;
+  const { teams, waitingTeam, benchPlayers } = state.lastDraw;
+
+  let sourceHolder = null;
+  let sourceIndex = -1;
+  let targetHolder = null;
+  let targetIndex = -1;
+
+  const findInArray = (arr) => {
+    if (!Array.isArray(arr)) return;
+    arr.forEach((m, idx) => {
+      if (m.id === sourceMemberId) { sourceHolder = arr; sourceIndex = idx; }
+      if (m.id === targetMemberId) { targetHolder = arr; targetIndex = idx; }
+    });
+  };
+
+  teams.forEach(t => findInArray(t.members));
+  if (waitingTeam) findInArray(waitingTeam.members);
+  findInArray(benchPlayers);
+
+  if (sourceHolder && targetHolder && sourceIndex !== -1 && targetIndex !== -1) {
+    const temp = sourceHolder[sourceIndex];
+    sourceHolder[sourceIndex] = targetHolder[targetIndex];
+    targetHolder[targetIndex] = temp;
+
+    if (state.lastDraw.matches) {
+      state.lastDraw.matches.forEach(m => {
+        const foundA = teams.find(t => t.id === m.teamA.id);
+        const foundB = teams.find(t => t.id === m.teamB.id);
+        if (foundA) m.teamA = foundA;
+        if (foundB) m.teamB = foundB;
+      });
+    }
+
+    if (state.tournament && Array.isArray(state.tournament.teams)) {
+      state.tournament.teams = JSON.parse(JSON.stringify(teams));
+    }
+
+    saveState();
+    renderDrawResults();
+    if (state.tournament) renderTournament();
+  }
+}

@@ -175,19 +175,8 @@ trucoNameB.addEventListener('input', () => {
   renderTrucoScoreboard();
 });
 
-btnResetTruco.addEventListener('click', () => {
-  state.truco.scoreA = 0;
-  state.truco.scoreB = 0;
-  saveState();
-  renderTrucoScoreboard();
-});
-
-btnTrucoRematch.addEventListener('click', () => {
-  state.truco.scoreA = 0;
-  state.truco.scoreB = 0;
-  saveState();
-  renderTrucoScoreboard();
-});
+btnResetTruco.addEventListener('click', resetTrucoScore);
+btnTrucoRematch.addEventListener('click', resetTrucoScore);
 
 btnTrucoUndo.addEventListener('click', () => {
   const t = state.truco;

@@ -7,7 +7,10 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
 ## ✨ Características Principales
 
 - **Formatos de juego rápidos:** Selector directo para **1 vs 1** (mano a mano), **2 vs 2** (parejas) y **3 vs 3** (tríos).
-- **Cruces automáticos (`VS`):** No solo agrupa a los jugadores, sino que arma los partidos listos para jugar (`Equipo 1 VS Equipo 2`).
+- **Cruces automáticos (`VS`) y Edición Flexible:**
+  - No solo agrupa a los jugadores, sino que arma los partidos listos para jugar (`Equipo 1 VS Equipo 2`).
+  - **Intercambio de Jugadores (`⇄`):** Podés cambiar o intercambiar a cualquier integrante de una pareja con otro jugador (o con un suplente del banco) con un solo clic.
+  - **Elección Manual de Club (`✏️`):** Además de sortear al azar con `🔄`, podés hacer clic sobre el club de cualquier equipo para elegirlo a mano desde el listado.
 - **Manejo inteligente de sobrantes:**
   - **Equipo en espera:** Si se forma una cantidad impar de equipos (ej. 3 parejas = 6 jugadores), el tercer equipo queda asignado como *"Espera ganador"*.
   - **Jugadores al banco:** Si el total de jugadores no es múltiplo del tamaño de equipo (ej. 5 jugadores para un `2 vs 2`), elige al azar quién queda en el banco para entrar en el próximo partido.
@@ -21,6 +24,7 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
   - **Cajoncitos de 5 Fósforos en vista única:** Los 3 cajoncitos de **Malas (primeros 15)** y los 3 cajoncitos de **Buenas (segundos 15)** se disponen en fila horizontal para que todo el partido a 30 puntos y los botones `-1` / `+1` entren en pantalla sin necesidad de scrollear.
   - **Suma de a 1 (`+1` / `-1` o toque directo):** Podés usar los botones `-1` / `+1` o tocar directamente los cajoncitos del pizarrón de cada equipo para sumar.
   - **Festejo Interactivo del Ganador:** Al llegar a 30 (o 15) puntos se lanza una lluvia de confeti, se ilumina la tarjeta del ganador y se habilitan acciones rápidas para **🔁 Jugar Revancha**, **📲 Copiar Victoria para WhatsApp** o **↩️ Deshacer punto**.
+  - **Tanteador individual por partido (Exclusivo sin clubes):** El botón `🃏 Anotar Truco` solo aparece cuando **no** se sortean clubes (modo Truco). Cada partido guarda su tanteador por separado en tiempo real y muestra el marcador en vivo directamente en la tarjeta (`🃏 18 - 12` o `🏆 30 - 22`).
   - **Integrado con Sorteos y Torneos:** Podés abrirlo desde cualquier tarjeta de partido sorteado o desde un partido del torneo para volcar el resultado directamente en la tabla o llave eliminatoria.
 - **🏆 Seguimiento Completo de Torneo (Fase de Grupos y/o Eliminatorias):**
   - Una vez conformadas las parejas/equipos (y sus clubes), podés presionar **✅ Confirmar Equipos y Generar Torneo** eligiendo entre 3 modalidades:

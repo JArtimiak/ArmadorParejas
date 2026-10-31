@@ -39,6 +39,7 @@ function generateDraw() {
       matchNumber: i + 1,
       teamA: teams[i * 2],
       teamB: teams[i * 2 + 1],
+      truco: { scoreA: 0, scoreB: 0, target: 30 },
     });
   }
 
@@ -78,7 +79,19 @@ function createTeamElement(team) {
   team.members.forEach(member => {
     const row = document.createElement('div');
     row.className = 'member-row';
-    row.innerHTML = `<span aria-hidden="true">${state.lastDraw.teamSize === 1 ? '👤' : '🎮'}</span> <span>${member.name}</span>`;
+
+    const infoSpan = document.createElement('span');
+    infoSpan.className = 'member-info';
+    infoSpan.innerHTML = `<span aria-hidden="true">${state.lastDraw.teamSize === 1 ? '👤' : '🎮'}</span> <span>${member.name}</span>`;
+
+    const swapBtn = document.createElement('button');
+    swapBtn.type = 'button';
+    swapBtn.className = 'btn-swap-member';
+    swapBtn.title = `Intercambiar a ${member.name} con otro jugador`;
+    swapBtn.textContent = '⇄';
+    swapBtn.addEventListener('click', () => renderMemberSwapSelect(row, member, team));
+
+    row.append(infoSpan, swapBtn);
     membersDiv.appendChild(row);
   });
   topDiv.appendChild(membersDiv);
@@ -88,23 +101,121 @@ function createTeamElement(team) {
     const clubRow = document.createElement('div');
     clubRow.className = 'club-badge-row';
 
-    const clubSpan = document.createElement('span');
-    clubSpan.className = 'club-name';
-    clubSpan.innerHTML = `<span aria-hidden="true">🛡️</span> <span>${team.club}</span>`;
+    const clubBtn = document.createElement('button');
+    clubBtn.type = 'button';
+    clubBtn.className = 'club-name-btn';
+    clubBtn.title = 'Hacé clic para elegir otro club a mano';
+    clubBtn.innerHTML = `<span aria-hidden="true">🛡️</span> <span class="club-text">${team.club}</span> <span class="club-edit-pen" aria-hidden="true">✏️</span>`;
+    clubBtn.addEventListener('click', () => renderClubManualSelect(clubRow, team));
 
     const rerollBtn = document.createElement('button');
     rerollBtn.type = 'button';
     rerollBtn.className = 'btn-reroll-single';
-    rerollBtn.title = 'Sortear otro club para este equipo';
+    rerollBtn.title = 'Sortear otro club al azar para este equipo';
     rerollBtn.textContent = '🔄';
     rerollBtn.addEventListener('click', () => rerollSingleTeamClub(team.id));
 
-    clubRow.appendChild(clubSpan);
-    clubRow.appendChild(rerollBtn);
+    clubRow.append(clubBtn, rerollBtn);
     box.appendChild(clubRow);
   }
 
   return box;
+}
+
+function renderMemberSwapSelect(row, member, currentTeam) {
+  const container = document.createElement('div');
+  container.className = 'member-swap-form';
+
+  const select = document.createElement('select');
+  select.className = 'member-swap-select';
+  select.setAttribute('aria-label', `Elegir reemplazo para ${member.name}`);
+
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = `Intercambiar a ${member.name} con...`;
+  select.appendChild(defaultOption);
+
+  if (state.lastDraw && state.lastDraw.teams) {
+    state.lastDraw.teams.forEach(otherTeam => {
+      const typeLabel = state.lastDraw.teamSize === 1 ? 'Jugador' : state.lastDraw.teamSize === 2 ? 'Pareja' : 'Equipo';
+      const optGroup = document.createElement('optgroup');
+      optGroup.label = otherTeam.id === currentTeam.id ? `${typeLabel} ${otherTeam.id} (Misma pareja)` : `${typeLabel} ${otherTeam.id}`;
+
+      otherTeam.members.forEach(otherMember => {
+        if (otherMember.id !== member.id) {
+          const opt = document.createElement('option');
+          opt.value = otherMember.id;
+          opt.textContent = otherMember.name;
+          optGroup.appendChild(opt);
+        }
+      });
+      if (optGroup.children.length > 0) select.appendChild(optGroup);
+    });
+  }
+
+  if (state.lastDraw && state.lastDraw.benchPlayers && state.lastDraw.benchPlayers.length > 0) {
+    const benchGroup = document.createElement('optgroup');
+    benchGroup.label = 'En el banco (Suplentes)';
+    state.lastDraw.benchPlayers.forEach(benchMember => {
+      if (benchMember.id !== member.id) {
+        const opt = document.createElement('option');
+        opt.value = benchMember.id;
+        opt.textContent = `${benchMember.name} (Banco)`;
+        benchGroup.appendChild(opt);
+      }
+    });
+    if (benchGroup.children.length > 0) select.appendChild(benchGroup);
+  }
+
+  select.addEventListener('change', () => {
+    if (select.value) swapDrawPlayers(member.id, select.value);
+  });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'btn-swap-cancel';
+  cancelBtn.textContent = '✕';
+  cancelBtn.title = 'Cancelar';
+  cancelBtn.addEventListener('click', renderDrawResults);
+
+  container.append(select, cancelBtn);
+  row.innerHTML = '';
+  row.appendChild(container);
+  select.focus();
+}
+
+function renderClubManualSelect(clubRow, team) {
+  const container = document.createElement('div');
+  container.className = 'club-select-form';
+
+  const select = document.createElement('select');
+  select.className = 'club-manual-select';
+  select.setAttribute('aria-label', `Elegir club para Pareja ${team.id}`);
+
+  const pool = state.customPresets[state.currentPresetKey] || [];
+  pool.forEach(clubName => {
+    const opt = document.createElement('option');
+    opt.value = clubName;
+    opt.textContent = clubName;
+    if (clubName === team.club) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  select.addEventListener('change', () => {
+    if (select.value) setTeamManualClub(team.id, select.value);
+  });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'btn-swap-cancel';
+  cancelBtn.textContent = '✕';
+  cancelBtn.title = 'Cancelar';
+  cancelBtn.addEventListener('click', renderDrawResults);
+
+  container.append(select, cancelBtn);
+  clubRow.innerHTML = '';
+  clubRow.appendChild(container);
+  select.focus();
 }
 
 function clearDrawUI() {
@@ -143,20 +254,42 @@ function renderDrawResults() {
       <span>FORMATO ${modeText}</span>
     `;
 
-    // Botón rápido para abrir el Anotador de Truco con las parejas de este partido
-    const trucoBtn = document.createElement('button');
-    trucoBtn.type = 'button';
-    trucoBtn.className = 'btn-open-truco-inline';
-    trucoBtn.innerHTML = '🃏 Anotar Truco';
-    trucoBtn.title = 'Abrir anotador de Truco con estas parejas';
-    trucoBtn.addEventListener('click', () => {
-      openTrucoScoreboard({
-        nameA: getTeamDisplayName(match.teamA),
-        nameB: getTeamDisplayName(match.teamB),
-        linkedMatch: null,
+    // El botón de Truco SOLO debe estar si NO se asignan clubes aleatorios
+    if (!state.assignClubs) {
+      if (!match.truco) {
+        match.truco = { scoreA: 0, scoreB: 0, target: 30 };
+      }
+      const tData = match.truco;
+      const target = tData.target || 30;
+      const hasScore = tData.scoreA > 0 || tData.scoreB > 0;
+      const isFinished = tData.scoreA >= target || tData.scoreB >= target;
+
+      const trucoBtn = document.createElement('button');
+      trucoBtn.type = 'button';
+      trucoBtn.className = `btn-open-truco-inline${isFinished ? ' is-finished' : hasScore ? ' has-score' : ''}`;
+
+      let label = '🃏 Anotar Truco';
+      if (isFinished) {
+        const winner = tData.scoreA >= target ? 'P1' : 'P2';
+        label = `🏆 ${tData.scoreA} - ${tData.scoreB} (Ganó ${winner})`;
+      } else if (hasScore) {
+        label = `🃏 ${tData.scoreA} - ${tData.scoreB}`;
+      }
+
+      trucoBtn.textContent = label;
+      trucoBtn.title = 'Anotar o ver tanteador de Truco de este partido';
+      trucoBtn.addEventListener('click', () => {
+        openTrucoScoreboard({
+          nameA: getTeamDisplayName(match.teamA),
+          nameB: getTeamDisplayName(match.teamB),
+          scoreA: tData.scoreA,
+          scoreB: tData.scoreB,
+          target: tData.target || 30,
+          linkedMatch: { type: 'draw', matchNumber: match.matchNumber },
+        });
       });
-    });
-    header.appendChild(trucoBtn);
+      header.appendChild(trucoBtn);
+    }
 
     const grid = document.createElement('div');
     grid.className = 'match-grid';
@@ -190,8 +323,11 @@ function renderDrawResults() {
     benchPlayersList.innerHTML = '';
     state.lastDraw.benchPlayers.forEach(p => {
       const chip = document.createElement('span');
-      chip.className = 'bench-chip';
-      chip.textContent = p.name;
+      chip.className = 'bench-chip bench-chip-interactive';
+      chip.innerHTML = `<span>${p.name}</span> <button type="button" class="btn-swap-member btn-swap-bench" title="Intercambiar a ${p.name} con un titular">⇄</button>`;
+      chip.querySelector('.btn-swap-member').addEventListener('click', () => {
+        renderMemberSwapSelect(chip, p, { id: 'bench' });
+      });
       benchPlayersList.appendChild(chip);
     });
   } else {

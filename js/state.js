@@ -206,6 +206,14 @@ function loadState() {
     }
     if (saved.lastDraw && Array.isArray(saved.lastDraw.teams)) {
       state.lastDraw = saved.lastDraw;
+      // Asegurar que cada partido del sorteo tenga su propio estado de Truco independiente
+      if (Array.isArray(state.lastDraw.matches)) {
+        state.lastDraw.matches.forEach(m => {
+          if (!m.truco || typeof m.truco.scoreA !== 'number') {
+            m.truco = { scoreA: 0, scoreB: 0, target: 30 };
+          }
+        });
+      }
     }
     if (saved.tournament && typeof saved.tournament === 'object') {
       state.tournament = saved.tournament;

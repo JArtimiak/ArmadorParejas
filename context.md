@@ -47,18 +47,21 @@ Toda la aplicación gira en torno a un único objeto de estado sincronizado en `
    - **Jugadores al banco (`bench`):** El resto `N % teamSize` queda asignado al banco de suplentes.
    - **Partidos (`matches`):** Los equipos se emparejan de a pares (`teams[0] vs teams[1]`, `teams[2] vs teams[3]`, etc.).
    - **Equipo en espera (`waitingTeam`):** Si `teams.length % 2 === 1`, el último equipo completo queda esperando al ganador.
-3. **Asignación, Re-sorteo y Reinicio:**
+3. **Asignación, Re-sorteo, Reinicio y Edición Manual:**
    - **`#btnGenerate` y `#btnRerollAll`:** Ejecutan un nuevo sorteo completo barajando jugadores y clubes con Fisher-Yates.
    - **`#btnRerollClubs`:** Vuelve a barajar únicamente los clubes asignados a los equipos ya existentes sin alterar parejas ni cruces.
    - **`#btnResetDraw` (`clearDrawUI`):** Resetea `state.lastDraw = null` y `state.tournament = null`, vacía los nodos de partidos y suplentes en el DOM y oculta los contenedores de resultados restaurando la vista inicial sin borrar los jugadores registrados.
    - **`rerollSingleTeamClub` (`🔄`):** Permite cambiar el club de un único equipo individualmente.
+   - **Intercambio de Jugadores (`swapDrawPlayers` / `⇄`):** Permite cambiar o intercambiar cualquier jugador entre parejas o con el banco de suplentes post-sorteo mediante un `<select>` sin alterar el resto de los equipos.
+   - **Elección Manual de Club (`setTeamManualClub` / `✏️`):** Permite hacer clic sobre el club de una pareja para seleccionarlo a mano desde un desplegable con todos los clubes disponibles del preset.
 4. **Motor de Torneos (`state.tournament`):**
    - **Modalidades soportadas:** `groups` (Solo Fase de Grupos), `knockout` (Solo Cuadro Eliminatorio) y `both` (Fase de Grupos + Cuadro Eliminatorio).
    - **Fixture Round-Robin (`generateRoundRobinRounds`):** Implementa el *Circle Method* (algoritmo de Berger) para generar las fechas todos contra todos de cada zona, asignando automáticamente fecha libre (`byeTeamId`) si el grupo tiene cantidad impar de equipos.
    - **Tabla de Posiciones en vivo (`computeGroupStandings`):** Calcula `PJ`, `G`, `E`, `P`, `GF`, `GC`, `DG` y `PTS` (3 pts por victoria, 1 pt por empate) y ordena por `PTS` → `DG` → `GF` → orden alfabético.
    - **Cuadro Eliminatorio Dinámico (`createKnockoutBracket` y `propagateBracketWinners`):** Calcula la potencia de 2 inmediata superior (`bracketSize` = 2, 4, 8 o 16) para rotular automáticamente **Octavos de Final**, **Cuartos de Final**, **Semifinales** y **Final**. Asigna pases directos (`isBye: true`) a los mejores preclasificados cuando el número de equipos no es potencia de 2 y propaga los ganadores ronda a ronda (por resultado numérico o selección directa con `✓ Ganó`) hasta coronar al campeón.
-5. **Anotador de Truco (`state.truco` y `createMatchstickBoxSVG`):**
-   - Accesible globalmente desde el botón fijo del encabezado (`#btnOpenTrucoGlobal`) o vinculado a un partido sorteado / partido de torneo (`linkedMatch`).
+5. **Anotador de Truco (`state.truco`, `match.truco` y `createMatchstickBoxSVG`):**
+   - Accesible globalmente desde el botón fijo del encabezado (`#btnOpenTrucoGlobal`) para partidas libres independientes o vinculado a un cruce (`linkedMatch`).
+   - **Visibilidad Condicional y Persistencia Aislada:** El botón `🃏 Anotar Truco` en las cards de partidos y en el torneo **solo se muestra cuando NO se asignan clubes** (`!state.assignClubs`). Cada partido almacena su propio tanteador (`match.truco = { scoreA, scoreB, target }`) y lo sincroniza en tiempo real, mostrándolo en la cabecera de la tarjeta (`🃏 18 - 12` o `🏆 30 - 22`).
    - **Diseño sin scroll:** Soporta partidas a **30 puntos** (divididas a la mitad en 15 *Malas* arriba y 15 *Buenas* abajo) o a **15 puntos**, ubicando los 3 cajoncitos de cada mitad en una fila horizontal compacta (`.truco-column-boxes`) para que todo el tablero y los controles `-1` / `+1` entren en una única pantalla sin desplazamiento vertical.
    - **Interactividad del Ganador (`launchTrucoConfetti`):** Al alcanzar el puntaje objetivo, lanza animación de confeti, ilumina la tarjeta ganadora (`.winner-card`) y despliega acciones directas de **Revancha (`0 - 0`)**, **Copiar Victoria para WhatsApp** y **Deshacer último punto**.
 

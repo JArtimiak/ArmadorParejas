@@ -302,8 +302,7 @@ function createBracketTeamRow(match, side, team, bracket) {
     scoreInput.value = currentScore !== null ? currentScore : '';
 
     scoreInput.addEventListener('input', () => {
-      const raw = scoreInput.value.trim();
-      const val = raw === '' ? null : Math.max(0, parseInt(raw, 10));
+      const val = scoreInput.value.trim() === '' ? null : Math.max(0, parseInt(scoreInput.value.trim(), 10));
       if (side === 'A') match.scoreA = val; else match.scoreB = val;
       if (match.scoreA !== null && match.scoreB !== null && match.scoreA !== match.scoreB) {
         match.winnerId = match.scoreA > match.scoreB ? match.teamAId : match.teamBId;
@@ -326,7 +325,6 @@ function createBracketTeamRow(match, side, team, bracket) {
       saveState();
       renderTournament();
     });
-
     controls.append(scoreInput, winBtn);
   }
 
@@ -355,7 +353,7 @@ function renderBracketColumns(bracket, teamsMap) {
 
       if (m.isBye) {
         header.innerHTML += `<span>PASE DIRECTO</span>`;
-      } else if (m.teamAId && m.teamBId) {
+      } else if (!state.assignClubs && m.teamAId && m.teamBId) {
         const trucoBtn = document.createElement('button');
         trucoBtn.type = 'button';
         trucoBtn.className = 'btn-open-truco-inline';
@@ -437,7 +435,7 @@ function renderTournament() {
               <input type="number" min="0" max="99" class="score-input score-a" placeholder="-" value="${m.scoreA !== null ? m.scoreA : ''}">
               <span>-</span>
               <input type="number" min="0" max="99" class="score-input score-b" placeholder="-" value="${m.scoreB !== null ? m.scoreB : ''}">
-              <button type="button" class="btn-open-truco-inline" title="Anotar con el Anotador de Truco">🃏</button>
+              ${!state.assignClubs ? '<button type="button" class="btn-open-truco-inline" title="Anotar con el Anotador de Truco">🃏</button>' : ''}
             </div>
             <div class="fixture-team away">
               <span>${getTeamDisplayName(teamB)}</span>
@@ -456,11 +454,14 @@ function renderTournament() {
 
           inputA.addEventListener('input', onScoreInput);
           inputB.addEventListener('input', onScoreInput);
-          row.querySelector('.btn-open-truco-inline').addEventListener('click', () => openTrucoScoreboard({
-            nameA: getTeamDisplayName(teamA), nameB: getTeamDisplayName(teamB),
-            scoreA: m.scoreA || 0, scoreB: m.scoreB || 0,
-            linkedMatch: { type: 'group', groupId: group.id, matchId: m.id },
-          }));
+          const trucoQuickBtn = row.querySelector('.btn-open-truco-inline');
+          if (trucoQuickBtn) {
+            trucoQuickBtn.addEventListener('click', () => openTrucoScoreboard({
+              nameA: getTeamDisplayName(teamA), nameB: getTeamDisplayName(teamB),
+              scoreA: m.scoreA || 0, scoreB: m.scoreB || 0,
+              linkedMatch: { type: 'group', groupId: group.id, matchId: m.id },
+            }));
+          }
           matchesContainer.appendChild(row);
         });
 
