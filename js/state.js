@@ -31,7 +31,9 @@ const DEFAULT_PRESETS = {
 const STORAGE_KEY = 'armador_parejas_state_v1';
 
 const state = {
-  teamSize: 2, // 1 = 1vs1, 2 = 2vs2, 3 = 3vs3
+  teamSize: 2, // 1 = 1vs1, 2 = 2vs2, 3 = 3vs3, 5 = F5, etc.
+  splitTwoTeams: false, // true = modo inteligente dividir en 2 equipos parejos
+  customTeamSize: null, // tamaño personalizado si fue ingresado por el usuario
   players: [], // [{ id, name, active }]
   assignClubs: true,
   currentPresetKey: 'mix5',
@@ -45,14 +47,20 @@ const state = {
     nameB: 'Ellos',
     scoreA: 0,
     scoreB: 0,
-    linkedMatch: null,
   }
 };
 
 // ==========================================
 // REFERENCIAS AL DOM (Sincronizadas con index.html)
 // ==========================================
-const modeButtons = document.querySelectorAll('.mode-btn');
+const modeButtons = document.querySelectorAll('.mode-btn:not(.mode-btn-football)');
+const btnFootballDropdown = document.getElementById('btnFootballDropdown');
+const footballBtnBadge = document.getElementById('footballBtnBadge');
+const footballBtnDesc = document.getElementById('footballBtnDesc');
+const footballDropdownMenu = document.getElementById('footballDropdownMenu');
+const footballOptButtons = document.querySelectorAll('.football-opt-btn');
+const customSizeInput = document.getElementById('customSizeInput');
+const btnApplyCustomSize = document.getElementById('btnApplyCustomSize');
 const playerForm = document.getElementById('playerForm');
 const playerInput = document.getElementById('playerInput');
 const playerListEl = document.getElementById('playerList');
@@ -154,7 +162,6 @@ const btnTrucoShare = document.getElementById('btnTrucoShare');
 const btnTrucoUndo = document.getElementById('btnTrucoUndo');
 const trucoTeamCardA = document.getElementById('trucoTeamCardA');
 const trucoTeamCardB = document.getElementById('trucoTeamCardB');
-const btnSaveTrucoToMatch = document.getElementById('btnSaveTrucoToMatch');
 
 // ==========================================
 // UTILIDADES Y PERSISTENCIA (localStorage)
@@ -169,10 +176,20 @@ function shuffleArray(array) {
   return copy;
 }
 
+function getEffectiveTeamSize() {
+  if (state.splitTwoTeams) {
+    const activeCount = state.players.filter(p => p.active).length;
+    return Math.max(1, Math.floor(activeCount / 2));
+  }
+  return Math.max(1, state.teamSize || 2);
+}
+
 function saveState() {
   try {
     const payload = {
       teamSize: state.teamSize,
+      splitTwoTeams: state.splitTwoTeams,
+      customTeamSize: state.customTeamSize,
       players: state.players,
       assignClubs: state.assignClubs,
       currentPresetKey: state.currentPresetKey,
@@ -194,7 +211,9 @@ function loadState() {
     if (!raw) return;
     const saved = JSON.parse(raw);
 
-    if ([1, 2, 3].includes(saved.teamSize)) state.teamSize = saved.teamSize;
+    if (typeof saved.teamSize === 'number' && saved.teamSize >= 1) state.teamSize = saved.teamSize;
+    if (typeof saved.splitTwoTeams === 'boolean') state.splitTwoTeams = saved.splitTwoTeams;
+    if (typeof saved.customTeamSize === 'number' && saved.customTeamSize >= 1) state.customTeamSize = saved.customTeamSize;
     if (Array.isArray(saved.players)) state.players = saved.players;
     if (typeof saved.assignClubs === 'boolean') state.assignClubs = saved.assignClubs;
     if (saved.currentPresetKey && DEFAULT_PRESETS[saved.currentPresetKey]) {
@@ -206,14 +225,6 @@ function loadState() {
     }
     if (saved.lastDraw && Array.isArray(saved.lastDraw.teams)) {
       state.lastDraw = saved.lastDraw;
-      // Asegurar que cada partido del sorteo tenga su propio estado de Truco independiente
-      if (Array.isArray(state.lastDraw.matches)) {
-        state.lastDraw.matches.forEach(m => {
-          if (!m.truco || typeof m.truco.scoreA !== 'number') {
-            m.truco = { scoreA: 0, scoreB: 0, target: 30 };
-          }
-        });
-      }
     }
     if (saved.tournament && typeof saved.tournament === 'object') {
       state.tournament = saved.tournament;
@@ -225,7 +236,6 @@ function loadState() {
         nameB: saved.truco.nameB || 'Ellos',
         scoreA: Number(saved.truco.scoreA) || 0,
         scoreB: Number(saved.truco.scoreB) || 0,
-        linkedMatch: saved.truco.linkedMatch || null,
       };
     }
   } catch (err) {

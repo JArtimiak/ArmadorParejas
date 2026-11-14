@@ -353,19 +353,6 @@ function renderBracketColumns(bracket, teamsMap) {
 
       if (m.isBye) {
         header.innerHTML += `<span>PASE DIRECTO</span>`;
-      } else if (!state.assignClubs && m.teamAId && m.teamBId) {
-        const trucoBtn = document.createElement('button');
-        trucoBtn.type = 'button';
-        trucoBtn.className = 'btn-open-truco-inline';
-        trucoBtn.innerHTML = '🃏 Truco';
-        trucoBtn.addEventListener('click', () => openTrucoScoreboard({
-          nameA: getTeamDisplayName(teamsMap[m.teamAId]),
-          nameB: getTeamDisplayName(teamsMap[m.teamBId]),
-          scoreA: m.scoreA || 0,
-          scoreB: m.scoreB || 0,
-          linkedMatch: { type: 'bracket', roundIndex: m.roundIndex, matchId: m.id },
-        }));
-        header.appendChild(trucoBtn);
       }
 
       const teamA = m.teamAId ? teamsMap[m.teamAId] : null;
@@ -435,7 +422,6 @@ function renderTournament() {
               <input type="number" min="0" max="99" class="score-input score-a" placeholder="-" value="${m.scoreA !== null ? m.scoreA : ''}">
               <span>-</span>
               <input type="number" min="0" max="99" class="score-input score-b" placeholder="-" value="${m.scoreB !== null ? m.scoreB : ''}">
-              ${!state.assignClubs ? '<button type="button" class="btn-open-truco-inline" title="Anotar con el Anotador de Truco">🃏</button>' : ''}
             </div>
             <div class="fixture-team away">
               <span>${getTeamDisplayName(teamB)}</span>
@@ -454,14 +440,6 @@ function renderTournament() {
 
           inputA.addEventListener('input', onScoreInput);
           inputB.addEventListener('input', onScoreInput);
-          const trucoQuickBtn = row.querySelector('.btn-open-truco-inline');
-          if (trucoQuickBtn) {
-            trucoQuickBtn.addEventListener('click', () => openTrucoScoreboard({
-              nameA: getTeamDisplayName(teamA), nameB: getTeamDisplayName(teamB),
-              scoreA: m.scoreA || 0, scoreB: m.scoreB || 0,
-              linkedMatch: { type: 'group', groupId: group.id, matchId: m.id },
-            }));
-          }
           matchesContainer.appendChild(row);
         });
 

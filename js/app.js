@@ -5,13 +5,69 @@
 // Selector de modalidad (1v1, 2v2, 3v3)
 modeButtons.forEach(btn => {
   btn.addEventListener('click', () => {
-    const newSize = Number(btn.dataset.size);
-    state.teamSize = newSize;
+    state.splitTwoTeams = false;
+    state.teamSize = Number(btn.dataset.size);
+    footballDropdownMenu.hidden = true;
     syncControlsWithState();
     updateStats();
     hideAlert();
     saveState();
   });
+});
+
+// Toggle del menú desplegable de Fútbol y Equipos Personalizados
+btnFootballDropdown.addEventListener('click', (e) => {
+  e.stopPropagation();
+  footballDropdownMenu.hidden = !footballDropdownMenu.hidden;
+});
+
+// Cerrar menú al hacer clic en cualquier otra parte de la pantalla
+document.addEventListener('click', (e) => {
+  if (!footballDropdownMenu.hidden && !btnFootballDropdown.contains(e.target) && !footballDropdownMenu.contains(e.target)) {
+    footballDropdownMenu.hidden = true;
+  }
+});
+
+// Selección de opciones de fútbol (Dividir en 2, F5, F7, F8, F11)
+footballOptButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.mode === 'split_two') {
+      state.splitTwoTeams = true;
+    } else {
+      state.splitTwoTeams = false;
+      state.teamSize = Number(btn.dataset.size);
+    }
+    footballDropdownMenu.hidden = true;
+    syncControlsWithState();
+    updateStats();
+    hideAlert();
+    saveState();
+  });
+});
+
+// Aplicar tamaño numérico personalizado
+btnApplyCustomSize.addEventListener('click', () => {
+  const val = parseInt(customSizeInput.value.trim(), 10);
+  if (!val || val < 1) {
+    showAlert('Ingresá un número válido de integrantes por equipo (mínimo 1).');
+    return;
+  }
+  state.splitTwoTeams = false;
+  state.teamSize = val;
+  state.customTeamSize = val;
+  customSizeInput.value = '';
+  footballDropdownMenu.hidden = true;
+  syncControlsWithState();
+  updateStats();
+  hideAlert();
+  saveState();
+});
+
+customSizeInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    btnApplyCustomSize.click();
+  }
 });
 
 // Agregar jugadores
@@ -139,11 +195,7 @@ btnResetPreset.addEventListener('click', () => {
 });
 
 // Eventos del Anotador de Truco
-btnOpenTrucoGlobal.addEventListener('click', () => {
-  state.truco.linkedMatch = null;
-  saveState();
-  openTrucoScoreboard();
-});
+btnOpenTrucoGlobal.addEventListener('click', openTrucoScoreboard);
 
 btnCloseTruco.addEventListener('click', () => trucoDialog.close());
 btnDoneTruco.addEventListener('click', () => trucoDialog.close());
@@ -208,8 +260,6 @@ btnTrucoShare.addEventListener('click', async () => {
     showAlert('No se pudo copiar el resultado.');
   }
 });
-
-btnSaveTrucoToMatch.addEventListener('click', saveTrucoToLinkedMatch);
 
 // Fallback para cierre de <dialog> al hacer clic en el backdrop en navegadores sin closedby="any"
 if (!('closedBy' in HTMLDialogElement.prototype)) {

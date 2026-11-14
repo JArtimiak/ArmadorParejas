@@ -4,10 +4,11 @@
 
 function generateDraw() {
   const activePlayers = state.players.filter(p => p.active);
-  const minPlayersNeeded = state.teamSize * 2;
+  const effectiveTeamSize = getEffectiveTeamSize();
+  const minPlayersNeeded = effectiveTeamSize * 2;
 
   if (activePlayers.length < minPlayersNeeded) {
-    showAlert(`Necesitás al menos ${minPlayersNeeded} jugadores activos para armar un cruce ${state.teamSize} vs ${state.teamSize}.`);
+    showAlert(`Necesitás al menos ${minPlayersNeeded} jugadores activos para armar un cruce ${effectiveTeamSize} vs ${effectiveTeamSize}.`);
     return;
   }
 
@@ -15,11 +16,11 @@ function generateDraw() {
 
   // Mezclar jugadores activos
   const shuffledPlayers = shuffleArray(activePlayers);
-  const totalTeams = Math.floor(shuffledPlayers.length / state.teamSize);
+  const totalTeams = Math.floor(shuffledPlayers.length / effectiveTeamSize);
 
   const teams = [];
   for (let i = 0; i < totalTeams; i++) {
-    const members = shuffledPlayers.slice(i * state.teamSize, (i + 1) * state.teamSize);
+    const members = shuffledPlayers.slice(i * effectiveTeamSize, (i + 1) * effectiveTeamSize);
     teams.push({
       id: i + 1,
       members,
@@ -28,7 +29,7 @@ function generateDraw() {
   }
 
   // Jugadores que sobran sin completar equipo
-  const benchPlayers = shuffledPlayers.slice(totalTeams * state.teamSize);
+  const benchPlayers = shuffledPlayers.slice(totalTeams * effectiveTeamSize);
 
   // Emparejar equipos en partidos (Team 1 vs Team 2, etc.)
   const matches = [];
@@ -39,7 +40,6 @@ function generateDraw() {
       matchNumber: i + 1,
       teamA: teams[i * 2],
       teamB: teams[i * 2 + 1],
-      truco: { scoreA: 0, scoreB: 0, target: 30 },
     });
   }
 
@@ -47,7 +47,7 @@ function generateDraw() {
   const waitingTeam = teams.length % 2 !== 0 ? teams[teams.length - 1] : null;
 
   state.lastDraw = {
-    teamSize: state.teamSize,
+    teamSize: effectiveTeamSize,
     teams,
     matches,
     waitingTeam,
@@ -253,43 +253,6 @@ function renderDrawResults() {
       <span>⚽ PARTIDO ${match.matchNumber}</span>
       <span>FORMATO ${modeText}</span>
     `;
-
-    // El botón de Truco SOLO debe estar si NO se asignan clubes aleatorios
-    if (!state.assignClubs) {
-      if (!match.truco) {
-        match.truco = { scoreA: 0, scoreB: 0, target: 30 };
-      }
-      const tData = match.truco;
-      const target = tData.target || 30;
-      const hasScore = tData.scoreA > 0 || tData.scoreB > 0;
-      const isFinished = tData.scoreA >= target || tData.scoreB >= target;
-
-      const trucoBtn = document.createElement('button');
-      trucoBtn.type = 'button';
-      trucoBtn.className = `btn-open-truco-inline${isFinished ? ' is-finished' : hasScore ? ' has-score' : ''}`;
-
-      let label = '🃏 Anotar Truco';
-      if (isFinished) {
-        const winner = tData.scoreA >= target ? 'P1' : 'P2';
-        label = `🏆 ${tData.scoreA} - ${tData.scoreB} (Ganó ${winner})`;
-      } else if (hasScore) {
-        label = `🃏 ${tData.scoreA} - ${tData.scoreB}`;
-      }
-
-      trucoBtn.textContent = label;
-      trucoBtn.title = 'Anotar o ver tanteador de Truco de este partido';
-      trucoBtn.addEventListener('click', () => {
-        openTrucoScoreboard({
-          nameA: getTeamDisplayName(match.teamA),
-          nameB: getTeamDisplayName(match.teamB),
-          scoreA: tData.scoreA,
-          scoreB: tData.scoreB,
-          target: tData.target || 30,
-          linkedMatch: { type: 'draw', matchNumber: match.matchNumber },
-        });
-      });
-      header.appendChild(trucoBtn);
-    }
 
     const grid = document.createElement('div');
     grid.className = 'match-grid';

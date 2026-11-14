@@ -3,10 +3,48 @@
 // ==========================================
 
 function syncControlsWithState() {
+  const isCustomOrFootball = state.splitTwoTeams || (state.teamSize !== 1 && state.teamSize !== 2 && state.teamSize !== 3);
+
   modeButtons.forEach(btn => {
-    const isMatch = Number(btn.dataset.size) === state.teamSize;
+    const isMatch = !state.splitTwoTeams && Number(btn.dataset.size) === state.teamSize;
     btn.classList.toggle('active', isMatch);
     btn.setAttribute('aria-pressed', String(isMatch));
+  });
+
+  // Sincronizar botón de Fútbol / Cancha
+  btnFootballDropdown.classList.toggle('active', isCustomOrFootball);
+  btnFootballDropdown.setAttribute('aria-pressed', String(isCustomOrFootball));
+
+  if (state.splitTwoTeams) {
+    const effSize = getEffectiveTeamSize();
+    footballBtnBadge.textContent = '⚡ 2 Equipos';
+    footballBtnDesc.textContent = `Mitad y mitad (${effSize}v${effSize})`;
+  } else if (state.teamSize === 5) {
+    footballBtnBadge.textContent = '⚽ 5 vs 5';
+    footballBtnDesc.textContent = 'Fútbol 5';
+  } else if (state.teamSize === 7) {
+    footballBtnBadge.textContent = '⚽ 7 vs 7';
+    footballBtnDesc.textContent = 'Fútbol 7';
+  } else if (state.teamSize === 8) {
+    footballBtnBadge.textContent = '⚽ 8 vs 8';
+    footballBtnDesc.textContent = 'Fútbol 8';
+  } else if (state.teamSize === 11) {
+    footballBtnBadge.textContent = '⚽ 11 vs 11';
+    footballBtnDesc.textContent = 'Fútbol 11';
+  } else if (isCustomOrFootball) {
+    footballBtnBadge.textContent = `⚽ ${state.teamSize} vs ${state.teamSize}`;
+    footballBtnDesc.textContent = 'Personalizado';
+  } else {
+    footballBtnBadge.textContent = '⚽ Cancha ▾';
+    footballBtnDesc.textContent = 'Fútbol & Custom';
+  }
+
+  // Marcar opción seleccionada en el menú desplegable
+  footballOptButtons.forEach(btn => {
+    let isSelected = false;
+    if (btn.dataset.mode === 'split_two' && state.splitTwoTeams) isSelected = true;
+    else if (!state.splitTwoTeams && Number(btn.dataset.size) === state.teamSize) isSelected = true;
+    btn.classList.toggle('is-selected', isSelected);
   });
 
   toggleClubs.checked = state.assignClubs;
@@ -54,21 +92,28 @@ function renderPlayers() {
 function updateStats() {
   const activePlayers = state.players.filter(p => p.active);
   const count = activePlayers.length;
-  const totalTeams = Math.floor(count / state.teamSize);
+  const effectiveSize = getEffectiveTeamSize();
+  const totalTeams = Math.floor(count / effectiveSize);
   const totalMatches = Math.floor(totalTeams / 2);
-  const benchCount = count % state.teamSize;
+  const benchCount = count % effectiveSize;
 
   statActiveCount.textContent = count;
   statTeamsCount.textContent = totalTeams;
   statMatchesCount.textContent = totalMatches;
   statBenchCount.textContent = benchCount;
 
-  if (state.teamSize === 1) {
+  if (state.splitTwoTeams) {
+    footballBtnDesc.textContent = `Mitad y mitad (${effectiveSize}v${effectiveSize})`;
+  }
+
+  if (effectiveSize === 1) {
     statTeamsLabel.textContent = 'Jugadores';
-  } else if (state.teamSize === 2) {
+  } else if (effectiveSize === 2) {
     statTeamsLabel.textContent = 'Parejas';
-  } else {
+  } else if (effectiveSize === 3) {
     statTeamsLabel.textContent = 'Tríos';
+  } else {
+    statTeamsLabel.textContent = 'Equipos';
   }
 }
 

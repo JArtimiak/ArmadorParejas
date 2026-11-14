@@ -109,14 +109,20 @@ body {
 
 .mode-selector {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.4rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
   background: var(--bg-input);
   padding: 0.35rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  flex: 1 1 300px;
-  max-inline-size: 420px;
+  flex: 1 1 380px;
+  max-inline-size: 540px;
+}
+
+@media (max-width: 500px) {
+  .mode-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .mode-btn {
@@ -157,6 +163,139 @@ body {
   font-size: clamp(0.66rem, 0.62rem + 0.2vw, 0.74rem);
   opacity: 0.85;
   white-space: nowrap;
+}
+
+/* Dropdown Flotante para Fútbol y Equipos Personalizados */
+.football-dropdown-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.mode-btn-football {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.football-dropdown-menu {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-end: 0;
+  min-inline-size: 290px;
+  max-inline-size: min(92dvw, 360px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  animation: dropdown-pop 0.18s ease-out;
+}
+
+.football-dropdown-menu[hidden] {
+  display: none !important;
+}
+
+@keyframes dropdown-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.football-opt-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  text-align: start;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-inline-size: 0;
+}
+
+.football-opt-btn:hover {
+  background: var(--bg-input);
+  border-color: var(--accent-secondary);
+}
+
+.football-opt-btn.is-selected {
+  border-color: var(--accent-primary);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.opt-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.opt-texts {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  line-height: 1.25;
+}
+
+.opt-texts strong {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.opt-texts small {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.dropdown-divider {
+  block-size: 1px;
+  background: var(--border-color);
+  margin: 0.2rem 0;
+}
+
+.custom-size-box {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.custom-size-box label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.custom-size-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.custom-size-row input {
+  inline-size: 100%;
+  font-size: max(16px, 0.92rem) !important;
+  padding: 0.35rem 0.5rem !important;
+  text-align: center;
+  border-radius: 6px !important;
+}
+
+.custom-size-row button {
+  flex-shrink: 0;
+  padding: 0.35rem 0.8rem !important;
 }
 
 /* Main Grid */
@@ -1616,48 +1755,6 @@ button:active {
   .btn-truco-header {
     flex: 1 1 100%;
   }
-}
-
-.btn-open-truco-inline {
-  background: rgba(245, 158, 11, 0.14);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #fcd34d;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.25rem 0.55rem;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.btn-open-truco-inline:hover {
-  background: #f59e0b;
-  color: #fff;
-}
-
-.btn-open-truco-inline.has-score {
-  background: rgba(59, 130, 246, 0.18);
-  border-color: rgba(59, 130, 246, 0.55);
-  color: #93c5fd;
-  font-weight: 800;
-}
-
-.btn-open-truco-inline.has-score:hover {
-  background: var(--accent-secondary);
-  color: #fff;
-}
-
-.btn-open-truco-inline.is-finished {
-  background: rgba(16, 185, 129, 0.22);
-  border-color: rgba(16, 185, 129, 0.65);
-  color: #6ee7b7;
-  font-weight: 800;
-}
-
-.btn-open-truco-inline.is-finished:hover {
-  background: var(--accent-primary);
-  color: #fff;
 }
 
 /* Modal del Anotador de Truco (Compacto sin necesidad de scroll) */

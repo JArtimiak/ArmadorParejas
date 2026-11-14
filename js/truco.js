@@ -155,61 +155,12 @@ function renderTrucoScoreboard() {
   } else {
     trucoWinnerBanner.hidden = true;
   }
-
-  // Botón para guardar resultado si fue abierto desde un partido del Torneo
-  btnSaveTrucoToMatch.hidden = !(t.linkedMatch && state.tournament);
-}
-
-function syncTrucoToLinkedMatch() {
-  const link = state.truco.linkedMatch;
-  if (!link) {
-    saveState();
-    return;
-  }
-
-  const { scoreA, scoreB, target } = state.truco;
-
-  if (link.type === 'draw' && state.lastDraw && Array.isArray(state.lastDraw.matches)) {
-    const match = state.lastDraw.matches.find(m => m.matchNumber === link.matchNumber);
-    if (match) {
-      match.truco = { scoreA, scoreB, target };
-      renderDrawResults();
-    }
-  } else if (link.type === 'group' && state.tournament && state.tournament.groups) {
-    const group = state.tournament.groups.find(g => g.id === link.groupId);
-    if (group) {
-      group.rounds.forEach(r => {
-        const m = r.matches.find(match => match.id === link.matchId);
-        if (m) {
-          m.scoreA = scoreA;
-          m.scoreB = scoreB;
-        }
-      });
-      renderTournament();
-    }
-  } else if (link.type === 'bracket' && state.tournament && state.tournament.bracket) {
-    const round = state.tournament.bracket.rounds[link.roundIndex];
-    if (round) {
-      const m = round.matches.find(match => match.id === link.matchId);
-      if (m) {
-        m.scoreA = scoreA;
-        m.scoreB = scoreB;
-        if (scoreA !== scoreB) {
-          m.winnerId = scoreA > scoreB ? m.teamAId : m.teamBId;
-        }
-        propagateBracketWinners(state.tournament.bracket);
-        renderTournament();
-      }
-    }
-  }
-
-  saveState();
 }
 
 function resetTrucoScore() {
   state.truco.scoreA = 0;
   state.truco.scoreB = 0;
-  syncTrucoToLinkedMatch();
+  saveState();
   renderTrucoScoreboard();
 }
 
@@ -221,7 +172,7 @@ function adjustTrucoScore(side, delta) {
   } else {
     t.scoreB = Math.max(0, Math.min(target, t.scoreB + delta));
   }
-  syncTrucoToLinkedMatch();
+  saveState();
   renderTrucoScoreboard();
 }
 
@@ -229,26 +180,11 @@ function setTrucoTarget(newTarget) {
   state.truco.target = newTarget;
   if (state.truco.scoreA > newTarget) state.truco.scoreA = newTarget;
   if (state.truco.scoreB > newTarget) state.truco.scoreB = newTarget;
-  syncTrucoToLinkedMatch();
+  saveState();
   renderTrucoScoreboard();
 }
 
-function openTrucoScoreboard(options = null) {
-  if (options) {
-    state.truco.nameA = options.nameA || 'Nosotros';
-    state.truco.nameB = options.nameB || 'Ellos';
-    state.truco.scoreA = typeof options.scoreA === 'number' ? options.scoreA : 0;
-    state.truco.scoreB = typeof options.scoreB === 'number' ? options.scoreB : 0;
-    state.truco.target = options.target === 15 ? 15 : 30;
-    state.truco.linkedMatch = options.linkedMatch || null;
-  } else {
-    state.truco.linkedMatch = null;
-  }
+function openTrucoScoreboard() {
   renderTrucoScoreboard();
   trucoDialog.showModal();
-}
-
-function saveTrucoToLinkedMatch() {
-  syncTrucoToLinkedMatch();
-  trucoDialog.close();
 }
