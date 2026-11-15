@@ -44,6 +44,9 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
   - Clic sobre cualquier jugador para marcarlo como **presente/ausente** sin borrarlo de tu lista habitual.
   - Guardado automático en el navegador (`localStorage`).
 - **Exportación para WhatsApp:** Botón **📋 Copiar resumen** que genera el listado de partidos, clubes y suplentes con emojis listo para pegar en el grupo.
+- **Interfaz Moderna, Accesible y Tema Dual (Oscuro / Claro):**
+  - Selector de tema claro/oscuro de alto contraste (`🌙` / `☀️`) que respeta la preferencia del sistema y evita destellos (FOUC) al cargar.
+  - Métricas en vivo con diseño **Bento Grid**, menú flotante de cancha con **Popover API** nativa y **Anchor Positioning**, indicador `<progress>` al sortear, notificaciones **Toast** no intrusivas (`popover="manual"`) y transiciones fluidas con **View Transitions API**.
 
 ---
 
@@ -61,16 +64,17 @@ Aplicación web interactiva para armar **parejas o equipos aleatorios**, generar
 ## 📁 Estructura de Archivos
 
 ```text
-├── index.html                  # Estructura principal y modales nativos <dialog>
+├── index.html                  # Estructura principal, popover de cancha, <dialog> nativos y región de toasts
 ├── css/
-│   └── styles.css              # Diseño moderno, adaptable y animaciones CSS
+│   └── styles.css              # Tema dual Oscuro/Claro, Bento Grid, Container Queries y View Transitions
 ├── js/
-│   ├── state.js                # Estado global, referencias al DOM y persistencia (localStorage)
+│   ├── state.js                # Estado global, DOM refs, localStorage, runViewTransition() y showToast()
 │   ├── players-clubs.js        # Gestión de jugadores y presets de clubes de fútbol
-│   ├── draw.js                 # Algoritmo de sorteo de parejas, cruces VS y copia WhatsApp
+│   ├── draw.js                 # Algoritmo de sorteo de parejas, cruces VS, spinner y copia WhatsApp
 │   ├── tournament.js           # Motor de Torneo (Fase de Grupos Round-Robin y Eliminatorias)
 │   ├── truco.js                # Anotador de Truco (30/15 pts con fósforos SVG y confeti)
-│   └── app.js                  # Punto de entrada: registro de eventos e inicialización
+│   └── app.js                  # Punto de entrada: eventos (IME-safe), toggle de tema y modales Top Layer
 ├── README.md                   # Documentación de uso y estructura del proyecto
+├── GEMINI.md                   # Guía técnica de stack, arquitectura y convenciones
 └── context.md                  # Contexto técnico, arquitectura y decisiones de diseño
 ```
