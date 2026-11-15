@@ -62,9 +62,11 @@ function updateActiveClubsCounter() {
 function renderPlayers() {
   playerListEl.innerHTML = '';
 
-  state.players.forEach(player => {
+  state.players.forEach((player, idx) => {
     const li = document.createElement('li');
-    li.className = `player-chip${player.active ? '' : ' inactive'}`;
+    li.className = `player-chip vt-chip${player.active ? '' : ' inactive'}`;
+    const safeId = String(player.id).replace(/[^a-zA-Z0-9_-]/g, '') || `idx-${idx}`;
+    li.style.viewTransitionName = `player-${safeId}`;
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'player-chip-name';
@@ -143,7 +145,7 @@ function addPlayersFromString(rawInput) {
   if (added) {
     hideAlert();
     saveState();
-    renderPlayers();
+    runViewTransition(() => renderPlayers());
   }
 }
 
@@ -152,13 +154,13 @@ function togglePlayerActive(id) {
   if (!player) return;
   player.active = !player.active;
   saveState();
-  renderPlayers();
+  runViewTransition(() => renderPlayers());
 }
 
 function removePlayer(id) {
   state.players = state.players.filter(p => p.id !== id);
   saveState();
-  renderPlayers();
+  runViewTransition(() => renderPlayers());
 }
 
 function assignClubsToTeams() {

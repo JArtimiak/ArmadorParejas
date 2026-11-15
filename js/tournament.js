@@ -194,8 +194,9 @@ function startTournamentFromDraw() {
   };
 
   saveState();
-  renderTournament();
+  runViewTransition(() => renderTournament(), document.getElementById('tournament-heading'));
   tournamentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('Torneo generado correctamente');
 }
 
 function advanceGroupsToKnockout() {
@@ -212,8 +213,9 @@ function advanceGroupsToKnockout() {
 
   t.bracket = createKnockoutBracket(seededTeams.slice(0, targetCount));
   saveState();
-  renderTournament();
+  runViewTransition(() => renderTournament(), document.getElementById('tournament-heading'));
   knockoutStageContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('Llaves eliminatorias generadas');
 }
 
 function renderGroupStandingsIntoWrapper(tableContainer, group, teamsMap, highlightTopCount) {
@@ -507,6 +509,7 @@ async function copyTournamentToClipboard() {
     await navigator.clipboard.writeText(lines.join('\n'));
     const orig = btnCopyTournament.textContent;
     btnCopyTournament.textContent = '✅ ¡Torneo copiado!';
+    showToast('Resumen del torneo copiado al portapapeles');
     setTimeout(() => { btnCopyTournament.textContent = orig; }, 2000);
   } catch {
     showAlert('No se pudo copiar el resumen del torneo.');

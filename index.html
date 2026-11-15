@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <script>
+    try {
+      document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem('color-scheme') ?? 'light dark';
+    } catch {}
+  </script>
   <title>Armador de Parejas & Cruces | Truco, Play & Fútbol</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
@@ -36,12 +42,12 @@
 
           <!-- Menú desplegable para Fútbol y Equipos Personalizados -->
           <div class="football-dropdown-wrapper">
-            <button type="button" id="btnFootballDropdown" class="mode-btn mode-btn-football" aria-expanded="false" aria-haspopup="true">
+            <button type="button" id="btnFootballDropdown" class="mode-btn mode-btn-football" popovertarget="footballDropdownMenu">
               <span class="mode-badge" id="footballBtnBadge">⚽ Cancha ▾</span>
               <span class="mode-desc" id="footballBtnDesc">Fútbol &amp; Custom</span>
             </button>
 
-            <div id="footballDropdownMenu" class="football-dropdown-menu" hidden>
+            <div id="footballDropdownMenu" class="football-dropdown-menu" popover="auto">
               <button type="button" class="football-opt-btn" data-mode="split_two">
                 <span class="opt-icon">⚡</span>
                 <span class="opt-texts">
@@ -94,11 +100,19 @@
           </div>
         </div>
 
-        <!-- Botón de Anotador de Truco siempre visible -->
-        <button type="button" id="btnOpenTrucoGlobal" class="btn-truco-header" title="Abrir anotador de Truco (15 o 30 puntos)">
-          <span aria-hidden="true">🃏</span>
-          <span>Anotador Truco</span>
-        </button>
+        <!-- Botón de Anotador de Truco siempre visible y selector de tema -->
+        <div class="header-utility-actions">
+          <button type="button" id="btnOpenTrucoGlobal" class="btn-truco-header" title="Abrir anotador de Truco (15 o 30 puntos)">
+            <span aria-hidden="true">🃏</span>
+            <span>Anotador Truco</span>
+          </button>
+          <button type="button" id="btnThemeToggle" class="btn-theme-toggle" title="Cambiar tema claro / oscuro">
+            <span class="theme-option-dark" aria-hidden="true">🌙</span>
+            <span class="theme-option-light" aria-hidden="true">☀️</span>
+            <span class="visually-hidden theme-option-dark">Cambiar a tema oscuro</span>
+            <span class="visually-hidden theme-option-light">Cambiar a tema claro</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -134,21 +148,25 @@
         <!-- Lista de jugadores -->
         <ul id="playerList" class="player-list" aria-live="polite"></ul>
 
-        <!-- Resumen matemático en vivo -->
-        <div id="playerStats" class="stats-bar">
-          <div class="stat-item">
+        <!-- Resumen matemático en vivo (Bento Grid) -->
+        <div id="playerStats" class="stats-bar bento-stats" aria-label="Resumen matemático en vivo">
+          <div class="stat-item bento-card">
+            <span class="stat-kicker" aria-hidden="true">👥</span>
             <span class="stat-value" id="statActiveCount">0</span>
             <span class="stat-label">Presentes</span>
           </div>
-          <div class="stat-item">
+          <div class="stat-item bento-card bento-accent">
+            <span class="stat-kicker" aria-hidden="true">🛡️</span>
             <span class="stat-value" id="statTeamsCount">0</span>
             <span class="stat-label" id="statTeamsLabel">Parejas</span>
           </div>
-          <div class="stat-item">
+          <div class="stat-item bento-card">
+            <span class="stat-kicker" aria-hidden="true">⚔️</span>
             <span class="stat-value" id="statMatchesCount">0</span>
             <span class="stat-label">Partidos VS</span>
           </div>
-          <div class="stat-item">
+          <div class="stat-item bento-card">
+            <span class="stat-kicker" aria-hidden="true">🪑</span>
             <span class="stat-value" id="statBenchCount">0</span>
             <span class="stat-label">Al banco</span>
           </div>
@@ -196,7 +214,8 @@
         <!-- Botón Principal de Sorteo -->
         <div class="draw-actions">
           <button type="button" id="btnGenerate" class="btn-draw">
-            🎲 ¡Armar Parejas y Cruces!
+            <progress id="drawSpinner" class="loading-spinner" aria-label="Sorteando equipos" hidden></progress>
+            <span class="btn-draw-label">🎲 ¡Armar Parejas y Cruces!</span>
           </button>
         </div>
       </section>
@@ -204,7 +223,7 @@
       <!-- Columna Derecha: Resultados y Enfrentamientos -->
       <section class="panel results-panel" aria-labelledby="results-heading">
         <div class="panel-header">
-          <h2 id="results-heading">🏆 Enfrentamientos y Parejas</h2>
+          <h2 id="results-heading" tabindex="-1">🏆 Enfrentamientos y Parejas</h2>
           <div class="header-actions" id="resultHeaderActions" hidden>
             <button type="button" id="btnRerollAll" class="btn-primary btn-sm" title="Vuelve a mezclar jugadores, parejas y clubes">
               🔄 Re-sortear todo
@@ -303,7 +322,7 @@
     <section id="tournamentSection" class="panel tournament-panel" aria-labelledby="tournament-heading" hidden>
       <div class="panel-header tournament-main-header">
         <div class="tournament-title-group">
-          <h2 id="tournament-heading">🏆 Seguimiento del Torneo</h2>
+          <h2 id="tournament-heading" tabindex="-1">🏆 Seguimiento del Torneo</h2>
           <span id="tournamentModeBadge" class="tournament-badge">En curso</span>
         </div>
         <div class="header-actions">
@@ -515,6 +534,10 @@
       <button type="button" id="btnDoneTruco" class="btn-secondary">Cerrar</button>
     </div>
   </dialog>
+
+  <p class="visually-hidden">Anuncios del sistema</p>
+  <div id="srAnnouncer" class="visually-hidden" aria-live="polite"></div>
+  <div id="toastRegion" class="toast-region" role="region" aria-label="Notificaciones"></div>
 
   <!-- Módulos JavaScript ordenados por responsabilidad (< 360 líneas c/u) -->
   <script src="js/state.js"></script>

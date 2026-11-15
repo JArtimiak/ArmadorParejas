@@ -7,25 +7,12 @@ modeButtons.forEach(btn => {
   btn.addEventListener('click', () => {
     state.splitTwoTeams = false;
     state.teamSize = Number(btn.dataset.size);
-    footballDropdownMenu.hidden = true;
+    footballDropdownMenu.hidePopover?.();
     syncControlsWithState();
     updateStats();
     hideAlert();
     saveState();
   });
-});
-
-// Toggle del menú desplegable de Fútbol y Equipos Personalizados
-btnFootballDropdown.addEventListener('click', (e) => {
-  e.stopPropagation();
-  footballDropdownMenu.hidden = !footballDropdownMenu.hidden;
-});
-
-// Cerrar menú al hacer clic en cualquier otra parte de la pantalla
-document.addEventListener('click', (e) => {
-  if (!footballDropdownMenu.hidden && !btnFootballDropdown.contains(e.target) && !footballDropdownMenu.contains(e.target)) {
-    footballDropdownMenu.hidden = true;
-  }
 });
 
 // Selección de opciones de fútbol (Dividir en 2, F5, F7, F8, F11)
@@ -37,7 +24,7 @@ footballOptButtons.forEach(btn => {
       state.splitTwoTeams = false;
       state.teamSize = Number(btn.dataset.size);
     }
-    footballDropdownMenu.hidden = true;
+    footballDropdownMenu.hidePopover?.();
     syncControlsWithState();
     updateStats();
     hideAlert();
@@ -56,7 +43,7 @@ btnApplyCustomSize.addEventListener('click', () => {
   state.teamSize = val;
   state.customTeamSize = val;
   customSizeInput.value = '';
-  footballDropdownMenu.hidden = true;
+  footballDropdownMenu.hidePopover?.();
   syncControlsWithState();
   updateStats();
   hideAlert();
@@ -66,6 +53,7 @@ btnApplyCustomSize.addEventListener('click', () => {
 customSizeInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) return;
     btnApplyCustomSize.click();
   }
 });
@@ -83,6 +71,7 @@ btnLoadDemo.addEventListener('click', () => {
   const sampleNames = ['Leo', 'Julián', 'Enzo', 'Dibu', 'Fideo', 'Cuti', 'Alexis', 'Lautaro'];
   state.players = [];
   addPlayersFromString(sampleNames.join(', '));
+  showToast('Jugadores de ejemplo cargados', 'info');
 });
 
 // Limpiar todos los jugadores
@@ -92,10 +81,13 @@ btnClearPlayers.addEventListener('click', () => {
   state.lastDraw = null;
   state.tournament = null;
   saveState();
-  renderPlayers();
-  clearDrawUI();
-  renderTournament();
+  runViewTransition(() => {
+    renderPlayers();
+    clearDrawUI();
+    renderTournament();
+  });
   hideAlert();
+  showToast('Lista de jugadores vaciada', 'info');
 });
 
 // Toggle sortear clubes
@@ -104,11 +96,11 @@ toggleClubs.addEventListener('change', (e) => {
   clubsConfigPanel.hidden = !state.assignClubs;
 
   if (state.lastDraw) {
-    if (state.assignClubs) {
-      assignClubsToTeams();
-    }
-    renderDrawResults();
-    renderTournament();
+    if (state.assignClubs) assignClubsToTeams();
+    runViewTransition(() => {
+      renderDrawResults();
+      renderTournament();
+    });
   }
   saveState();
 });
@@ -119,8 +111,10 @@ presetSelect.addEventListener('change', (e) => {
   updateActiveClubsCounter();
   if (state.lastDraw && state.assignClubs) {
     assignClubsToTeams();
-    renderDrawResults();
-    renderTournament();
+    runViewTransition(() => {
+      renderDrawResults();
+      renderTournament();
+    });
   }
   saveState();
 });
@@ -140,8 +134,11 @@ btnRerollClubs.addEventListener('click', () => {
   if (!state.lastDraw) return;
   assignClubsToTeams();
   saveState();
-  renderDrawResults();
-  renderTournament();
+  runViewTransition(() => {
+    renderDrawResults();
+    renderTournament();
+  });
+  showToast('Clubes re-sorteados');
 });
 
 // Copiar resumen de cruces
@@ -152,9 +149,12 @@ btnResetDraw.addEventListener('click', () => {
   state.lastDraw = null;
   state.tournament = null;
   saveState();
-  clearDrawUI();
-  renderTournament();
+  runViewTransition(() => {
+    clearDrawUI();
+    renderTournament();
+  });
   hideAlert();
+  showToast('Resultados reiniciados', 'info');
 });
 
 // Eventos del Torneo
@@ -165,7 +165,8 @@ btnCopyTournament.addEventListener('click', copyTournamentToClipboard);
 btnResetTournament.addEventListener('click', () => {
   state.tournament = null;
   saveState();
-  renderTournament();
+  runViewTransition(() => renderTournament());
+  showToast('Torneo finalizado', 'info');
 });
 
 // Modal de edición de clubes
@@ -174,8 +175,8 @@ btnOpenClubsDialog.addEventListener('click', () => {
   clubsDialog.showModal();
 });
 
-btnCloseDialog.addEventListener('click', () => clubsDialog.close());
-btnConfirmDialog.addEventListener('click', () => clubsDialog.close());
+btnCloseDialog.addEventListener('click', () => closeTopLayer(clubsDialog));
+btnConfirmDialog.addEventListener('click', () => closeTopLayer(clubsDialog));
 
 addClubForm.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -191,14 +192,15 @@ btnResetPreset.addEventListener('click', () => {
     saveState();
     renderClubsModal();
     updateActiveClubsCounter();
+    showToast('Clubes restaurados por defecto', 'info');
   }
 });
 
 // Eventos del Anotador de Truco
 btnOpenTrucoGlobal.addEventListener('click', openTrucoScoreboard);
 
-btnCloseTruco.addEventListener('click', () => trucoDialog.close());
-btnDoneTruco.addEventListener('click', () => trucoDialog.close());
+btnCloseTruco.addEventListener('click', () => closeTopLayer(trucoDialog));
+btnDoneTruco.addEventListener('click', () => closeTopLayer(trucoDialog));
 btnTrucoTarget30.addEventListener('click', () => setTrucoTarget(30));
 btnTrucoTarget15.addEventListener('click', () => setTrucoTarget(15));
 
@@ -261,14 +263,84 @@ btnTrucoShare.addEventListener('click', async () => {
   }
 });
 
-// Fallback para cierre de <dialog> al hacer clic en el backdrop en navegadores sin closedby="any"
+// Top-layer exit animation fallback y cierre seguro para <dialog>
+let supportsDisplayTransition;
+function canTransitionDisplay() {
+  if (supportsDisplayTransition !== undefined) return supportsDisplayTransition;
+  if (!window.CSS?.supports?.('transition-behavior', 'allow-discrete') || !document.body) return false;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'transition: display 1s allow-discrete !important; display: block;';
+  document.body.appendChild(probe);
+  getComputedStyle(probe).display;
+  probe.style.display = 'none';
+  supportsDisplayTransition = getComputedStyle(probe).display === 'block';
+  probe.remove();
+  return supportsDisplayTransition;
+}
+
+async function closeTopLayer(dlg) {
+  if (!dlg || !dlg.open) return;
+  if (!(window.CSS?.supports?.('overlay', 'auto') && canTransitionDisplay())) {
+    dlg.setAttribute('data-closing', '');
+    const anims = dlg.getAnimations({ subtree: true });
+    if (anims.length > 0) {
+      await Promise.race([Promise.allSettled(anims.map(a => a.finished)), new Promise(r => setTimeout(r, 400))]);
+    }
+    if (!dlg.hasAttribute('data-closing')) return;
+    dlg.removeAttribute('data-closing');
+  }
+  dlg.close();
+}
+
+[clubsDialog, trucoDialog].forEach(dlg => {
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeTopLayer(dlg); });
+});
+
 if (!('closedBy' in HTMLDialogElement.prototype)) {
+  const outside = (e, dialog) => {
+    const r = dialog.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
   [clubsDialog, trucoDialog].forEach(dlg => {
-    dlg.addEventListener('click', (e) => {
-      if (e.target === dlg) dlg.close();
-    });
+    let pressedOutside = false;
+    dlg.addEventListener('pointerdown', (e) => { pressedOutside = outside(e, dlg); });
+    dlg.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e, dlg)) closeTopLayer(dlg); });
   });
 }
+
+// Toggle de Tema Claro / Oscuro (2 estados con reversión automática a preferencia del sistema)
+function setColorSchemeMeta(value) {
+  const meta = document.querySelector('meta[name="color-scheme"]');
+  if (meta) meta.content = value;
+}
+
+if (btnThemeToggle) {
+  btnThemeToggle.addEventListener('click', () => {
+    const darkSystem = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    let stored = null;
+    try { stored = localStorage.getItem('color-scheme'); } catch {}
+    const current = (stored === 'light' || stored === 'dark') ? stored : (darkSystem ? 'dark' : 'light');
+    const target = current === 'dark' ? 'light' : 'dark';
+    const systemScheme = darkSystem ? 'dark' : 'light';
+    try {
+      if (target === systemScheme) {
+        localStorage.removeItem('color-scheme');
+        setColorSchemeMeta('light dark');
+      } else {
+        localStorage.setItem('color-scheme', target);
+        setColorSchemeMeta(target);
+      }
+    } catch {
+      setColorSchemeMeta(target);
+    }
+  });
+}
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'color-scheme') {
+    setColorSchemeMeta(e.newValue === 'light' || e.newValue === 'dark' ? e.newValue : 'light dark');
+  }
+});
 
 // ==========================================
 // INICIALIZACIÓN

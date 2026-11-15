@@ -55,12 +55,20 @@ function generateDraw() {
     timestamp: Date.now(),
   };
 
-  if (state.assignClubs) {
-    assignClubsToTeams();
-  }
-
+  if (state.assignClubs) assignClubsToTeams();
   saveState();
-  renderDrawResults();
+
+  const resultsHeading = document.getElementById('results-heading');
+  if (drawSpinner) drawSpinner.hidden = false;
+  btnGenerate.setAttribute('aria-busy', 'true');
+  const vt = runViewTransition(() => renderDrawResults(), resultsHeading);
+  const finishSpin = () => {
+    if (drawSpinner) drawSpinner.hidden = true;
+    btnGenerate.removeAttribute('aria-busy');
+  };
+  if (vt) vt.finished.finally(finishSpin);
+  else setTimeout(finishSpin, 180);
+  showToast('¡Parejas y cruces sorteados!');
 }
 
 function createTeamElement(team) {
@@ -245,28 +253,18 @@ function renderDrawResults() {
 
   state.lastDraw.matches.forEach(match => {
     const card = document.createElement('article');
-    card.className = 'match-card';
-
+    card.className = 'match-card vt-card';
+    card.style.viewTransitionName = `match-card-${match.matchNumber}`;
     const header = document.createElement('div');
     header.className = 'match-card-header';
-    header.innerHTML = `
-      <span>⚽ PARTIDO ${match.matchNumber}</span>
-      <span>FORMATO ${modeText}</span>
-    `;
-
+    header.innerHTML = `<span>⚽ PARTIDO ${match.matchNumber}</span><span>FORMATO ${modeText}</span>`;
     const grid = document.createElement('div');
     grid.className = 'match-grid';
-
     const vsPill = document.createElement('div');
     vsPill.className = 'vs-pill';
     vsPill.textContent = 'VS';
-
-    grid.appendChild(createTeamElement(match.teamA));
-    grid.appendChild(vsPill);
-    grid.appendChild(createTeamElement(match.teamB));
-
-    card.appendChild(header);
-    card.appendChild(grid);
+    grid.append(createTeamElement(match.teamA), vsPill, createTeamElement(match.teamB));
+    card.append(header, grid);
     matchesList.appendChild(card);
   });
 
@@ -341,9 +339,8 @@ async function copySummaryToClipboard() {
     await navigator.clipboard.writeText(lines.join('\n'));
     const originalText = btnCopyWhatsapp.textContent;
     btnCopyWhatsapp.textContent = '✅ ¡Copiado!';
-    setTimeout(() => {
-      btnCopyWhatsapp.textContent = originalText;
-    }, 2000);
+    showToast('Resumen de partidos copiado para WhatsApp');
+    setTimeout(() => { btnCopyWhatsapp.textContent = originalText; }, 2000);
   } catch {
     showAlert('No se pudo copiar automáticamente al portapapeles.');
   }

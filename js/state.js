@@ -163,6 +163,12 @@ const btnTrucoUndo = document.getElementById('btnTrucoUndo');
 const trucoTeamCardA = document.getElementById('trucoTeamCardA');
 const trucoTeamCardB = document.getElementById('trucoTeamCardB');
 
+// Tema, Carga y Notificaciones
+const btnThemeToggle = document.getElementById('btnThemeToggle');
+const drawSpinner = document.getElementById('drawSpinner');
+const toastRegion = document.getElementById('toastRegion');
+const srAnnouncer = document.getElementById('srAnnouncer');
+
 // ==========================================
 // UTILIDADES Y PERSISTENCIA (localStorage)
 // ==========================================
@@ -251,4 +257,81 @@ function showAlert(message) {
 function hideAlert() {
   alertBox.hidden = true;
   alertBox.textContent = '';
+}
+
+function runViewTransition(updateCallback, focusElement = null) {
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!document.startViewTransition || reduceMotion) {
+    updateCallback();
+    if (focusElement) focusElement.focus({ preventScroll: true });
+    return null;
+  }
+  const transition = document.startViewTransition(() => updateCallback());
+  transition.finished.catch(() => {}).finally(() => {
+    if (focusElement) focusElement.focus({ preventScroll: true });
+  });
+  return transition;
+}
+
+function updateToastStackOffsets() {
+  if (!toastRegion) return;
+  Array.from(toastRegion.querySelectorAll('.toast-item')).reverse().forEach((item, idx) => {
+    item.style.setProperty('--toast-index', String(idx));
+  });
+}
+
+function showToast(message, variant = 'success') {
+  if (!message) return;
+  if (srAnnouncer) srAnnouncer.textContent = message;
+  if ((clubsDialog && clubsDialog.open) || (trucoDialog && trucoDialog.open) || !toastRegion) return;
+
+  const previousActive = document.activeElement;
+  const toastId = `toast-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const toast = document.createElement('div');
+  toast.id = toastId;
+  toast.className = `toast-item toast-${variant}`;
+  toast.setAttribute('popover', 'manual');
+
+  const textSpan = document.createElement('span');
+  textSpan.textContent = message;
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'toast-close';
+  closeBtn.setAttribute('aria-label', 'Cerrar notificación');
+  closeBtn.setAttribute('popovertarget', toastId);
+  closeBtn.setAttribute('popovertargetaction', 'hide');
+  closeBtn.textContent = '✕';
+  toast.append(textSpan, closeBtn);
+  toastRegion.appendChild(toast);
+  updateToastStackOffsets();
+
+  let timerId = null;
+  const removeToast = (wasManual = false) => {
+    clearTimeout(timerId);
+    if (!toast.isConnected) return;
+    const hadFocus = toast.contains(document.activeElement);
+    toast.remove();
+    updateToastStackOffsets();
+    if (wasManual && hadFocus) {
+      const nextClose = toastRegion.querySelector('.toast-item .toast-close');
+      if (nextClose) nextClose.focus();
+      else if (previousActive?.focus && previousActive.isConnected) previousActive.focus();
+    }
+  };
+  const scheduleClose = () => {
+    clearTimeout(timerId);
+    timerId = setTimeout(() => {
+      if (toast.contains(document.activeElement)) return;
+      if (typeof toast.hidePopover === 'function' && toast.matches(':popover-open')) toast.hidePopover();
+      else removeToast(false);
+    }, 3600);
+  };
+
+  toast.addEventListener('toggle', (e) => { if (e.newState === 'closed') removeToast(true); });
+  toast.addEventListener('focusin', () => clearTimeout(timerId));
+  toast.addEventListener('focusout', scheduleClose);
+  if (typeof toast.showPopover === 'function') toast.showPopover();
+  else closeBtn.addEventListener('click', () => removeToast(true));
+  if (typeof toast.ariaNotify === 'function') toast.ariaNotify(message);
+  scheduleClose();
 }
